@@ -36,7 +36,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
     prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia } } }),
   ]);
   const doMes = diasDoMes(competencia);
-  const colaboradores = todos.filter((c) => !foraDoBeneficio(tipo, c));
+  const colaboradores = todos.filter((c) => !foraDoBeneficio(c));
   const diasUteis = mesSalvo?.diasUteis ?? doMes.semana;
 
   const recebem = colaboradores

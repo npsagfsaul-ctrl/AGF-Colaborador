@@ -19,9 +19,9 @@ export function ehFreela(c: Pessoa): boolean {
   return [c.cargo, c.setor, c.jornada, c.observacao].some((t) => !!t && /freela/i.test(t));
 }
 
-/** Quem fica de fora da lista do benefício: estagiário em VA e VT, freela no VA. */
-export function foraDoBeneficio(tipo: string, c: Pessoa): boolean {
-  return ehEstagiario(c) || (tipo === 'va' && ehFreela(c));
+/** Quem fica de fora do VA e do VT: estagiário e freela. */
+export function foraDoBeneficio(c: Pessoa): boolean {
+  return ehEstagiario(c) || ehFreela(c);
 }
 
 export const NOME_BENEFICIO = { va: 'Vale Alimentação', vt: 'Vale Transporte' } as const;

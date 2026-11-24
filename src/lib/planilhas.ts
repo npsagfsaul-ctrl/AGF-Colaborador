@@ -198,7 +198,7 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     return [{
       nome,
       colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12), N('Dias do mês'), N('Dias'), T('Motivo', 28), R('Valor do mês'), D('Carregado em')],
-      linhas: lista.filter((c) => !foraDoBeneficio(tipo, c)).map((c) => {
+      linhas: lista.filter((c) => !foraDoBeneficio(c)).map((c) => {
         const b = c.beneficios[0];
         const rc = c.recargas[0];
         const padrao = diasPadrao(diasQueTrabalha(c.jornadaDetalhe), uteis, doMes.sabados);
@@ -216,7 +216,7 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     {
       nome: `${tipo.toUpperCase()} - quem recebe`,
       colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12)],
-      linhas: quem.filter((b) => !foraDoBeneficio(tipo, b.colaborador)).map((b) => [b.colaborador.nome, b.colaborador.setor, r(b.valorCentavos), por(b)]),
+      linhas: quem.filter((b) => !foraDoBeneficio(b.colaborador)).map((b) => [b.colaborador.nome, b.colaborador.setor, r(b.valorCentavos), por(b)]),
     },
     {
       nome: `${tipo.toUpperCase()} - recargas`,
