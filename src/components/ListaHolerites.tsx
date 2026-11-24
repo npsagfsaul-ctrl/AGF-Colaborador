@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { marcarHolerite, marcarTodosHolerites } from '@/actions/holerites';
 import { dataBR } from '@/lib/datas';
+import BaixarExcel from './BaixarExcel';
 
 interface Linha {
   id: string;
@@ -71,6 +72,7 @@ export default function ListaHolerites({
             Marcar todos
           </button>
         )}
+        <div style={{ marginLeft: 'auto' }}><BaixarExcel tela="holerites" mes={competencia} /></div>
       </div>
 
       {erro && <div className="alert alert-danger" style={{ marginBottom: 16 }}>{erro}</div>}

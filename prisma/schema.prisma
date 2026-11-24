@@ -46,6 +46,11 @@ model Colaborador {
   lancamentos LancamentoHoras[]
   ferias      Ferias[]
   holerites   Holerite[]
+  beneficios  Beneficio[]
+  recargas    RecargaBeneficio[]
+  planoVidas  PlanoVida[]
+  premios     Premio[]
+  salarios    Salario[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,4 +103,140 @@ model Holerite {
   createdAt DateTime @default(now())
 
   @@unique([colaboradorId, competencia])
+}
+
+/* ─── Dinheiro ───
+   Todo valor em dinheiro é guardado em CENTAVOS, inteiro. R$ 8,80 = 880.
+   Número com vírgula no banco erra o centavo na soma (0,1 + 0,2 ≠ 0,3), e
+   aqui a soma é conferida com o extrato. */
+
+/// Salário a partir de uma data. O atual é o mais recente que já começou;
+/// os anteriores ficam como histórico de reajustes.
+model Salario {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  valorCentavos Int
+  desde         String
+  motivo        String?
+
+  createdAt DateTime @default(now())
+
+  @@index([colaboradorId])
+}
+
+/// Quem recebe VA ou VT, e quanto. Existir a linha = recebe.
+model Beneficio {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  /// "va" ou "vt"
+  tipo          String
+  valorCentavos Int
+  /// true: o valor é por dia trabalhado. false: é o valor do mês cheio.
+  porDia        Boolean @default(true)
+
+  @@unique([colaboradorId, tipo])
+}
+
+/// A recarga de um mês para um colaborador: dias considerados e se já foi feita.
+model RecargaBeneficio {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  tipo        String
+  competencia String
+  /// null = os dias úteis do mês, sem desconto.
+  dias        Int?
+  motivo      String?
+  carregadoEm String?
+  /// O valor no momento em que foi marcada como carregada.
+  valorCentavos Int?
+
+  @@unique([colaboradorId, tipo, competencia])
+}
+
+/// Dias úteis de um mês, quando diferente da conta automática (feriado etc.).
+model MesBeneficio {
+  tipo        String
+  competencia String
+  diasUteis   Int
+
+  @@id([tipo, competencia])
+}
+
+/// Uma pessoa no plano de saúde: o titular ou um dependente.
+/// Saiu do plano = `exclusao` preenchida; a linha fica como histórico.
+model PlanoVida {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  /// "Titular", "Cônjuge", "Filho(a)"...
+  parentesco    String
+  /// Vazio para o titular (usa o nome do colaborador).
+  nome          String?
+  nascimento    String?
+  plano         String?
+  carteirinha   String?
+  valorCentavos    Int?
+  descontoCentavos Int?
+  inclusao      String?
+  exclusao      String?
+  observacao    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([colaboradorId])
+}
+
+/// Assinatura ganha como prêmio de meta (Spotify, HBO...).
+model Premio {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  competencia String
+  servico     String
+  observacao  String?
+  ativadoEm   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([competencia])
+}
+
+/// Freelancer (coletor, limpeza). Não é colaborador registrado.
+model Freelancer {
+  id     String  @id @default(cuid())
+  nome   String
+  funcao String?
+  telefone String?
+  pix      String?
+  diariaCentavos Int?
+  observacao String?
+  ativo  Boolean @default(true)
+
+  diarias Diaria[]
+
+  createdAt DateTime @default(now())
+}
+
+/// Um dia trabalhado por um freelancer. Pago = `pagoEm` preenchido.
+model Diaria {
+  id           String     @id @default(cuid())
+  freelancerId String
+  freelancer   Freelancer @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  data          String
+  valorCentavos Int
+  observacao    String?
+  pagoEm        String?
+
+  createdAt DateTime @default(now())
+
+  @@index([freelancerId])
 }

@@ -1219,69 +1219,112 @@ fieldset.card {
   min-width: 0;
 }
 
-/* ─── DP: menu no topo (sem barra lateral) ─── */
-.dp-topo {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--sidebar-bg);
-  color: #fff;
+/* ─── DP: menu lateral agrupado (inspirado no Sólides) ─── */
+:root { --dp-lateral: 236px; --dp-acento: #6d4fd8; --dp-acento-claro: rgba(109, 79, 216, 0.09); }
+
+.dp-lateral {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--dp-lateral);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 40;
+  padding: 18px 12px;
 }
-.dp-topo-dentro {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 16px;
-  height: 56px;
+.dp-marca { font-weight: 800; font-size: 1.125rem; color: var(--text-main); text-decoration: none; white-space: nowrap; }
+.dp-marca span { font-weight: 600; color: var(--dp-acento); margin-left: 4px; }
+.dp-marca-lateral { padding: 0 10px 14px; }
+.dp-grupo { margin-top: 10px; }
+.dp-grupo-titulo {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-light);
+  padding: 4px 10px;
+}
+.dp-item {
   display: flex;
   align-items: center;
-  gap: 20px;
-}
-.dp-marca {
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.dp-marca span {
-  font-weight: 500;
-  color: var(--sidebar-text);
-  margin-left: 4px;
-}
-.dp-menu {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.dp-menu a {
-  color: var(--sidebar-text);
-  text-decoration: none;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text-muted);
   font-size: 0.875rem;
   font-weight: 500;
-  padding: 6px 10px;
-  border-radius: 6px;
-  white-space: nowrap;
-}
-.dp-menu a:hover { color: #fff; }
-.dp-menu a.ativo { color: #fff; background: var(--sidebar-active-bg); }
-.dp-sair {
+  text-decoration: none;
   background: none;
   border: none;
-  color: var(--sidebar-text);
-  font-size: 0.8125rem;
   cursor: pointer;
+  text-align: left;
+  font-family: inherit;
 }
-.dp-sair:hover { color: #fff; }
+.dp-item:hover { background: var(--surface-2); color: var(--text-main); }
+.dp-item.ativo { background: var(--dp-acento-claro); color: var(--dp-acento); font-weight: 600; }
+.dp-item-sair { margin-top: auto; }
+.dp-lateral form.dp-grupo { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
+
+.dp-barra-celular { display: none; }
+.dp-fundo { display: none; }
+
 .dp-conteudo {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px 16px 48px;
+  margin-left: var(--dp-lateral);
+  padding: 28px 28px 56px;
+  max-width: calc(1100px + var(--dp-lateral));
 }
+
+/* Cabeçalho de ficha: círculo com iniciais, nome, etiquetas, linha de dados. */
+.dp-cabecalho { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.dp-avatar {
+  flex: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+.dp-avatar-anel { padding: 4px; border-radius: 50%; background: linear-gradient(135deg, #6d4fd8, #3b82f6); flex: none; }
+.dp-avatar-anel > .dp-avatar { border: 3px solid var(--surface); }
+.dp-etiquetas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.dp-etiqueta {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--dp-acento-claro);
+  color: var(--dp-acento);
+}
+.dp-etiqueta.perigo { background: var(--danger-light); color: var(--danger); }
+.dp-dados {
+  display: flex;
+  gap: 8px 22px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+.dp-dados strong { color: var(--text-main); font-weight: 600; }
+.dp-pessoa { display: flex; align-items: center; gap: 10px; }
+
+.dp-titulo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.dp-titulo h1 { margin: 0; }
+.dp-titulo .dp-direita { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
 .dp-lista { list-style: none; margin: 0; padding: 0; }
 .dp-lista li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 8px 0;
   border-top: 1px solid var(--border);
@@ -1292,14 +1335,38 @@ fieldset.card {
 .dp-lista a:hover { text-decoration: underline; }
 .dp-paineis {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 600px) {
-  .dp-topo-dentro { gap: 4px 10px; height: auto; padding: 10px 12px 6px; flex-wrap: wrap; justify-content: space-between; }
-  .dp-menu { order: 3; flex-basis: 100%; margin: 0 -10px; }
-  .dp-so-largo { display: none; }
-  .dp-conteudo { padding: 16px 12px 40px; }
-  .dp-paineis { grid-template-columns: 1fr; }
+.dp-num { font-family: monospace; font-weight: 700; white-space: nowrap; }
+.dp-grupo-linha td {
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
+
+@media (max-width: 860px) {
+  .dp-barra-celular {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+  }
+  .dp-hamburguer { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 4px; display: flex; }
+  .dp-lateral { transform: translateX(-100%); transition: transform 0.2s; box-shadow: var(--shadow-lg); }
+  .dp-lateral.aberta { transform: none; }
+  .dp-fundo { display: block; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); z-index: 35; }
+  .dp-conteudo { margin-left: 0; padding: 16px 12px 40px; }
+  .dp-paineis { grid-template-columns: 1fr; }
+  .dp-so-largo { display: none; }
+}
+.dp-cabecalho h1.page-title { font-size: 1.5rem; }

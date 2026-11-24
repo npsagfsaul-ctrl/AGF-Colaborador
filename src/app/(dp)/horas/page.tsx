@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { saldoDe } from '@/lib/horas';
 import SaldosEmLote from '@/components/SaldosEmLote';
+import BaixarExcel from '@/components/BaixarExcel';
 
 export default async function HorasPage() {
   const todos = await prisma.colaborador.findMany({
@@ -36,12 +37,15 @@ export default async function HorasPage() {
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>
-        Controle de Horas{' '}
+      <div className="dp-titulo">
+      <h1 className="page-title">
+        Banco de horas{' '}
         <span className="text-muted" style={{ fontWeight: 400, fontSize: '1rem' }}>
           {devendo > 0 ? `${devendo} devendo` : colaboradores.length > 0 ? 'todos em dia' : ''}
         </span>
       </h1>
+      <div className="dp-direita"><BaixarExcel tela="horas" /></div>
+      </div>
 
       {colaboradores.length === 0 ? (
         <div className="card">

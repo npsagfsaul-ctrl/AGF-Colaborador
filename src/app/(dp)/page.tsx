@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { formatarHoras, saldoDe } from '@/lib/horas';
+import { formatarDinheiro } from '@/lib/dinheiro';
+import BaixarExcel from '@/components/BaixarExcel';
 import {
   competenciaAtual,
   dataBR,
@@ -90,13 +92,23 @@ export default async function PainelPage() {
     .filter((x) => x.saldo < 0)
     .sort((a, b) => a.saldo - b.saldo);
 
+  const freelas = (await prisma.freelancer.findMany({
+    include: { diarias: { where: { pagoEm: null }, select: { valorCentavos: true } } },
+    orderBy: { nome: 'asc' },
+  }))
+    .map((f) => ({ f, total: f.diarias.reduce((s, d) => s + d.valorCentavos, 0) }))
+    .filter((x) => x.total > 0);
+
   const nada =
     aniversarios.length + asos.length + deFerias.length + feriasAVencer.length +
-    semHolerite.length + devendo.length === 0;
+    semHolerite.length + devendo.length + freelas.length === 0;
 
   return (
     <div>
-      <h1 className="page-title" style={{ marginBottom: 16 }}>Painel</h1>
+      <div className="dp-titulo">
+        <h1 className="page-title">Painel</h1>
+        <div className="dp-direita"><BaixarExcel tela="tudo" rotulo="Backup completo" /></div>
+      </div>
 
       {nada && (
         <div className="card">
@@ -183,6 +195,18 @@ export default async function PainelPage() {
                   <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--danger)' }}>
                     {formatarHoras(d.saldo, true)}
                   </span>
+                </li>
+              ))}
+            </ul>
+          </Bloco>
+        )}
+        {freelas.length > 0 && (
+          <Bloco titulo="Freelas a pagar" cor="var(--warning)">
+            <ul className="dp-lista">
+              {freelas.map((x) => (
+                <li key={x.f.id}>
+                  <Link href={`/freelas/${x.f.id}`}>{x.f.nome}</Link>
+                  <span className="dp-num">{formatarDinheiro(x.total)}</span>
                 </li>
               ))}
             </ul>

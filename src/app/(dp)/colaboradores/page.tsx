@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { dataBR, hojeISO, situacaoAso, valida } from '@/lib/datas';
 import NovoColaborador from '@/components/NovoColaborador';
+import Avatar from '@/components/Avatar';
+import BaixarExcel from '@/components/BaixarExcel';
 
 function porSetor<T extends { setor: string | null }>(lista: T[]) {
   const mapa = new Map<string, T[]>();
@@ -23,10 +25,11 @@ export default async function ColaboradoresPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h1 className="page-title" style={{ margin: 0 }}>
+      <div className="dp-titulo">
+        <h1 className="page-title">
           Colaboradores <span className="text-muted" style={{ fontWeight: 400, fontSize: '1rem' }}>{ativos.length}</span>
         </h1>
+        <div className="dp-direita"><BaixarExcel tela="colaboradores" /></div>
       </div>
 
       <NovoColaborador setores={setores} />
@@ -59,7 +62,10 @@ export default async function ColaboradoresPage() {
                       return (
                         <tr key={c.id}>
                           <td>
-                            <Link href={`/colaboradores/${c.id}`} style={{ fontWeight: 600, color: 'inherit' }}>{c.nome}</Link>
+                            <Link href={`/colaboradores/${c.id}`} className="dp-pessoa" style={{ fontWeight: 600, color: 'inherit', textDecoration: 'none' }}>
+                              <Avatar nome={c.nome} />
+                              {c.nome}
+                            </Link>
                           </td>
                           <td className="text-muted dp-so-largo">{c.cargo ?? '—'}</td>
                           <td>{valida(c.nascimento) ? dataBR(c.nascimento).slice(0, 5) : <span className="text-muted">—</span>}</td>

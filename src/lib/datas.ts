@@ -214,3 +214,38 @@ export function competenciaAtual(hoje: string): string {
 export function ultimasCompetencias(hoje: string, n: number): string[] {
   return Array.from({ length: n }, (_, i) => somaMeses(hoje, -(i + 1)).slice(0, 7));
 }
+
+/* ─── Meses ─── */
+
+/** "2026-11" do dia de hoje. */
+export function mesDe(hoje: string): string {
+  return hoje.slice(0, 7);
+}
+
+/** Soma meses a uma competência "aaaa-mm". */
+export function somaMes(comp: string, meses: number): string {
+  return somaMeses(`${comp}-01`, meses).slice(0, 7);
+}
+
+/** Segunda a sexta do mês. Feriado não entra na conta: ajusta-se à mão. */
+export function diasUteisDoMes(comp: string): number {
+  const [a, m] = comp.split('-').map(Number);
+  const total = new Date(Date.UTC(a, m, 0)).getUTCDate();
+  let n = 0;
+  for (let d = 1; d <= total; d++) {
+    const s = new Date(Date.UTC(a, m - 1, d)).getUTCDay();
+    if (s !== 0 && s !== 6) n++;
+  }
+  return n;
+}
+
+export function competenciaValida(c: string | null | undefined): c is string {
+  return !!c && /^\d{4}-(0[1-9]|1[0-2])$/.test(c);
+}
+
+/** "2026-11" → "nov/26", para listas curtas. */
+export function mesCurto(comp: string): string {
+  const [a, m] = comp.split('-').map(Number);
+  const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return `${nomes[m - 1]}/${String(a).slice(2)}`;
+}

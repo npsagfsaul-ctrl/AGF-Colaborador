@@ -19,7 +19,7 @@ export default async function ColaboradorHorasPage({ params }: { params: Promise
   return (
     <div>
       <nav className="breadcrumb" style={{ marginBottom: 4 }}>
-        <Link href="/horas" className="breadcrumb-link">Controle de Horas</Link>
+        <Link href="/horas" className="breadcrumb-link">Banco de horas</Link>
         <span className="breadcrumb-sep">›</span>
         <span className="breadcrumb-current">
           {[c.setor, resumoJornada(jornada)].filter(Boolean).join(' · ') || c.nome}

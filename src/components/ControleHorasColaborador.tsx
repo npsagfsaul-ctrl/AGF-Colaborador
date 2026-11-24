@@ -6,89 +6,13 @@ import {
   criarLancamentoHoras,
   deletarLancamentoHoras,
   definirSaldoInicial,
-  definirJornada,
   definirControleDeHoras,
 } from '@/actions/horas';
 import { formatarHoras, jaEstaNoRelatorio } from '@/lib/horas';
 import { dataBR, hojeISO } from '@/lib/datas';
 import type { Resultado } from '@/lib/acao';
-import {
-  formatarBloco,
-  minutosDaSemana,
-  resumoJornada,
-  type Jornada,
-  type Periodo,
-} from '@/lib/jornada';
-
-/**
- * As quatro batidas do dia, pelos nomes que a agência usa.
- *
- * São os dois períodos da jornada vistos do jeito de quem bate o ponto:
- * chega, sai para o almoço, volta, vai embora. Chamar as quatro de
- * "entrada" e "saída" duas vezes não dizia nada.
- */
-const ROTULOS = ['Entrada', 'Saída p/ almoço', 'Volta do almoço', 'Saída'];
-
-/**
- * Um bloco da jornada: até dois períodos, com o total do dia ao lado.
- *
- * O total aparece enquanto a pessoa digita porque é assim que ela percebe o
- * erro na hora — 8h virou 7h porque trocou 19:00 por 18:00.
- */
-function BlocoJornada({
-  titulo,
-  periodos,
-  onChange,
-}: {
-  titulo: string;
-  periodos: Periodo[];
-  onChange: (p: Periodo[]) => void;
-}) {
-  const linhas: Periodo[] = [0, 1].map((i) => periodos[i] ?? { entrada: '', saida: '' });
-
-  function trocar(indice: number, campo: 'entrada' | 'saida', valor: string) {
-    const novos = linhas.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p));
-    // Períodos em branco não vão para o banco; a limpeza final é no servidor.
-    onChange(novos);
-  }
-
-  return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
-      <div style={{ flex: '1 1 130px', fontWeight: 600, fontSize: '0.875rem', paddingBottom: 10 }}>
-        {titulo}
-      </div>
-
-      {linhas.map((p, i) => (
-        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.7rem' }}>{ROTULOS[i * 2]}</label>
-            <input
-              type="time"
-              className="form-input"
-              value={p.entrada}
-              onChange={(e) => trocar(i, 'entrada', e.target.value)}
-              style={{ width: 110 }}
-            />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" style={{ fontSize: '0.7rem' }}>{ROTULOS[i * 2 + 1]}</label>
-            <input
-              type="time"
-              className="form-input"
-              value={p.saida}
-              onChange={(e) => trocar(i, 'saida', e.target.value)}
-              style={{ width: 110 }}
-            />
-          </div>
-        </div>
-      ))}
-
-      <div style={{ paddingBottom: 10, fontFamily: 'monospace', fontWeight: 700, minWidth: 60, textAlign: 'right' }}>
-        {formatarBloco(linhas)}
-      </div>
-    </div>
-  );
-}
+import { minutosDaSemana, resumoJornada, type Jornada } from '@/lib/jornada';
+import EditorJornada from './EditorJornada';
 
 export interface ColaboradorHoras {
   id: string;
@@ -110,8 +34,6 @@ export default function ControleHorasColaborador({ c }: { c: ColaboradorHoras })
 
   const [saldoTexto, setSaldoTexto] = useState(formatarHoras(c.saldoInicialMinutos, true));
   const [saldoData, setSaldoData] = useState(c.saldoInicialEm ?? '');
-  const [jornada, setJornada] = useState<Jornada>(c.jornada);
-  const [nota, setNota] = useState(c.jornadaNota ?? '');
 
   async function executar(fn: () => Promise<Resultado>) {
     setErro(null);
@@ -321,46 +243,17 @@ export default function ControleHorasColaborador({ c }: { c: ColaboradorHoras })
         )}
       </details>
 
-      <details className="card">
+      <details className='card'>
         <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9375rem' }}>
           Jornada
-          {minutosDaSemana(jornada) > 0 && (
-            <span className="badge badge-primary" style={{ marginLeft: 8, fontSize: '0.75rem' }}>
-              {resumoJornada(jornada)}
+          {minutosDaSemana(c.jornada) > 0 && (
+            <span className='badge badge-primary' style={{ marginLeft: 8, fontSize: '0.75rem' }}>
+              {resumoJornada(c.jornada)}
             </span>
           )}
         </summary>
-
         <div style={{ marginTop: 16 }}>
-          <BlocoJornada
-            titulo="Segunda a sexta"
-            periodos={jornada.semana}
-            onChange={(semana) => setJornada((j) => ({ ...j, semana }))}
-          />
-          <BlocoJornada
-            titulo="Sábado"
-            periodos={jornada.sabado}
-            onChange={(sabado) => setJornada((j) => ({ ...j, sabado }))}
-          />
-
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 8 }}>
-            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 240px' }}>
-              <input
-                className="form-input"
-                value={nota}
-                onChange={(e) => setNota(e.target.value)}
-                placeholder="Observação: estagiária, contrato 44h…"
-              />
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={ocupado}
-              onClick={() => executar(() => definirJornada(c.id, jornada, nota))}
-            >
-              Salvar jornada
-            </button>
-          </div>
+          <EditorJornada id={c.id} jornadaInicial={c.jornada} notaInicial={c.jornadaNota} />
         </div>
       </details>
 
