@@ -1370,3 +1370,14 @@ fieldset.card {
   .dp-so-largo { display: none; }
 }
 .dp-cabecalho h1.page-title { font-size: 1.5rem; }
+
+/* Carregando: blocos cinza pulsando enquanto a página busca os dados. */
+.dp-osso {
+  border-radius: 6px;
+  background: var(--gray-200, #e5e7eb);
+  animation: dp-pulsa 1.2s ease-in-out infinite;
+}
+@keyframes dp-pulsa {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
