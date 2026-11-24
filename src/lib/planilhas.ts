@@ -11,7 +11,7 @@ import {
 } from './datas';
 import { formatarHoras, jaEstaNoRelatorio, saldoDe } from './horas';
 import { lerJornada, minutosDaSemana, type Periodo } from './jornada';
-import { diasDoMes, diasPadrao, diasQueTrabalha, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
+import { descontoFolhaVA, diasDoMes, diasPadrao, diasQueTrabalha, diasVA, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
 import { NOMES_MES, ocorrenciasNoMes, rotuloFrequencia } from './agenda';
 import { feriadosDoAno } from './feriados';
 import { itensDaAgenda } from './agendaDados';
@@ -195,6 +195,26 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     ]);
     const doMes = diasDoMes(mes);
     const uteis = salvo?.diasUteis ?? doMes.semana;
+    if (tipo === 'va') {
+      // No jeito da planilha do DP: dias úteis + meio dia por sábado − descontos.
+      const pessoas = lista.filter((c) => !foraDoBeneficio(c));
+      const linhas = pessoas.map((c) => {
+        const b = c.beneficios[0];
+        const rc = c.recargas[0];
+        const dias = diasVA(uteis, rc);
+        const valor = rc?.carregadoEm && rc.valorCentavos !== null ? rc.valorCentavos : valorDaRecarga(b, dias, uteis);
+        // Já carregado: o valor do dia daquela época (antes de um dissídio, por exemplo).
+        const unit = rc?.carregadoEm && rc.valorCentavos !== null && b.porDia && dias > 0 ? Math.round(rc.valorCentavos / dias) : b.valorCentavos;
+        return [c.nome, c.setor, uteis, rc?.sabados ?? null, rc?.descontar ?? null, dias, rc?.motivo ?? null, r(unit), r(valor), r(descontoFolhaVA(valor)), d(rc?.carregadoEm)];
+      });
+      const soma = (i: number) => linhas.reduce((s, l) => s + ((l[i] as number | null) ?? 0), 0);
+      linhas.push(['Total', null, null, null, null, null, null, null, soma(8), soma(9), null]);
+      return [{
+        nome: `VA - ${nomeCompetencia(mes)}`,
+        colunas: [T('Nome completo', 34), T('Setor'), N('Dias úteis'), N('Sábados (½ dia cada)'), N('Descontar'), N('Dias do mês'), T('Descrição', 40), R('Valor unit.'), R('Valor do mês'), R('Desc. folha 20%'), D('Carregado em')],
+        linhas,
+      }];
+    }
     return [{
       nome,
       colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12), N('Dias do mês'), N('Dias'), T('Motivo', 28), R('Valor do mês'), D('Carregado em')],

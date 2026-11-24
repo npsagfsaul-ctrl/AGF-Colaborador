@@ -74,6 +74,33 @@ export function diasPadrao(
   return (quando.semana ? diasUteis : 0) + (quando.sabado ? sabados : 0);
 }
 
+/** VA: cada sábado trabalhado vale meio dia, como na planilha do DP. */
+export const SABADO_VA = 0.5;
+/** VA: parte descontada em folha. */
+export const DESCONTO_FOLHA_VA = 0.2;
+
+/**
+ * Dias de VA no mês: os dias úteis (seg a sex, sem feriado) + meio dia por
+ * sábado trabalhado − os dias a descontar (falta, atestado, declaração).
+ * Registro antigo, só com `dias`, continua valendo o que foi digitado.
+ */
+export function diasVA(
+  diasUteis: number,
+  r?: { dias: number | null; sabados: number | null; descontar: number | null } | null,
+): number {
+  if (r && r.sabados === null && r.descontar === null && r.dias !== null) return r.dias;
+  return Math.max(0, diasUteis + (r?.sabados ?? 0) * SABADO_VA - (r?.descontar ?? 0));
+}
+
+export function descontoFolhaVA(valorCentavos: number): number {
+  return Math.round(valorCentavos * DESCONTO_FOLHA_VA);
+}
+
+/** 20.5 → "20,5". */
+export function formatarDias(n: number): string {
+  return String(n).replace('.', ',');
+}
+
 /**
  * Quanto carregar no mês.
  *
@@ -86,7 +113,7 @@ export function valorDaRecarga(
   dias: number,
   padrao: number,
 ): number {
-  if (b.porDia) return b.valorCentavos * (b.vezesPorDia ?? 1) * dias;
+  if (b.porDia) return Math.round(b.valorCentavos * (b.vezesPorDia ?? 1) * dias);
   if (padrao <= 0 || dias >= padrao) return b.valorCentavos;
   return Math.round((b.valorCentavos * dias) / padrao);
 }

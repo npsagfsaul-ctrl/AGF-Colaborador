@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { competenciaValida, diasEntre, hojeISO, mesDe, nomeCompetencia, somaMes } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
+import { descontoFolhaVA, diasDoMes, diasPadrao, diasQueTrabalha, diasVA, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
 import BeneficioMes from './BeneficioMes';
 import QuemRecebe from './QuemRecebe';
 import BaixarExcel from './BaixarExcel';
@@ -45,8 +45,10 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
       const b = c.beneficios[0];
       const r = c.recargas[0];
       const quando = diasQueTrabalha(c.jornadaDetalhe);
-      const padrao = diasPadrao(quando, diasUteis, doMes.sabados);
-      const dias = r?.dias ?? padrao;
+      // VA segue a planilha do DP: dias úteis + meio dia por sábado − descontos.
+      const padrao = tipo === 'va' ? diasUteis : diasPadrao(quando, diasUteis, doMes.sabados);
+      const dias = tipo === 'va' ? diasVA(diasUteis, r) : (r?.dias ?? padrao);
+      const aCarregar = r?.carregadoEm && r.valorCentavos !== null ? r.valorCentavos : valorDaRecarga(b, dias, padrao);
       return {
         id: c.id,
         nome: c.nome,
@@ -57,10 +59,14 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
         padrao,
         sabado: quando.sabado,
         dias: r?.dias ?? null,
+        sabados: r?.sabados ?? null,
+        descontar: r?.descontar ?? null,
+        diasCalc: dias,
+        descontoFolha: tipo === 'va' ? descontoFolhaVA(aCarregar) : null,
         motivo: r?.motivo ?? '',
         carregadoEm: r?.carregadoEm ?? null,
         // Carregado: vale o que foi gravado na hora. Senão, a conta de agora.
-        aCarregar: r?.carregadoEm && r.valorCentavos !== null ? r.valorCentavos : valorDaRecarga(b, dias, padrao),
+        aCarregar,
         ferias: feriasNoMes(c.ferias, competencia),
       };
     });

@@ -154,6 +154,10 @@ model RecargaBeneficio {
   competencia String
   /// null = os dias úteis do mês, sem desconto.
   dias        Int?
+  /// VA: sábados trabalhados no período — cada um soma meio dia.
+  sabados     Int?
+  /// VA: dias a descontar (falta, atestado, declaração). Aceita meio dia.
+  descontar   Float?
   motivo      String?
   carregadoEm String?
   /// O valor no momento em que foi marcada como carregada.

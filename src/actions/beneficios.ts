@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { executar, type Resultado } from '@/lib/acao';
 import { parseDinheiro } from '@/lib/dinheiro';
 import { competenciaValida, hojeISO } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, valorDaRecarga } from '@/lib/beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, diasVA, valorDaRecarga } from '@/lib/beneficio';
 
 function tipoValido(t: string): asserts t is 'va' | 'vt' {
   if (t !== 'va' && t !== 'vt') throw new Error('Benefício inválido.');
@@ -82,6 +82,34 @@ export async function salvarDiasRecarga(
 }
 
 /**
+ * VA de um colaborador no mês: sábados trabalhados (meio dia cada), dias a
+ * descontar (falta, atestado, declaração — aceita meio dia) e a descrição.
+ */
+export async function salvarAjusteVA(
+  competencia: string,
+  colaboradorId: string,
+  sabados: number | null,
+  descontar: number | null,
+  motivo: string,
+): Promise<Resultado> {
+  return executar(async () => {
+    if (!competenciaValida(competencia)) throw new Error('Mês inválido.');
+    if (sabados !== null && (!Number.isInteger(sabados) || sabados < 0 || sabados > 10)) {
+      throw new Error('Sábados: um número inteiro, de 0 a 10.');
+    }
+    if (descontar !== null && (!Number.isFinite(descontar) || descontar < 0 || descontar > 31 || (descontar * 2) % 1 !== 0)) {
+      throw new Error('Descontar: dias inteiros ou meio dia (ex.: 1 ou 0,5).');
+    }
+    const dados = { sabados: sabados || null, descontar: descontar || null, dias: null, motivo: motivo.trim() || null };
+    await prisma.recargaBeneficio.upsert({
+      where: { colaboradorId_tipo_competencia: { colaboradorId, tipo: 'va', competencia } },
+      create: { colaboradorId, tipo: 'va', competencia, ...dados },
+      update: dados,
+    });
+  });
+}
+
+/**
  * Marca a recarga como feita e guarda o valor daquele momento: se o valor
  * do benefício mudar depois, o histórico do mês continua mostrando o que
  * foi carregado de fato.
@@ -112,8 +140,10 @@ export async function marcarRecarga(
       colaboradorIds.map((colaboradorId) => {
         const b = beneficios.find((x) => x.colaboradorId === colaboradorId);
         const r = recargas.find((x) => x.colaboradorId === colaboradorId);
-        const padrao = b ? diasPadrao(diasQueTrabalha(b.colaborador.jornadaDetalhe), diasUteis, doMes.sabados) : 0;
-        const valor = carregado && b ? valorDaRecarga(b, r?.dias ?? padrao, padrao) : null;
+        // VA: dias úteis + sábados trabalhados − descontos. VT: os dias da jornada dela.
+        const padrao = !b ? 0 : tipo === 'va' ? diasUteis : diasPadrao(diasQueTrabalha(b.colaborador.jornadaDetalhe), diasUteis, doMes.sabados);
+        const dias = tipo === 'va' ? diasVA(diasUteis, r) : (r?.dias ?? padrao);
+        const valor = carregado && b ? valorDaRecarga(b, dias, padrao) : null;
         const dados = { carregadoEm: carregado ? hoje : null, valorCentavos: valor };
         return prisma.recargaBeneficio.upsert({
           where: { colaboradorId_tipo_competencia: { colaboradorId, tipo, competencia } },
