@@ -20,5 +20,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Fora da senha só a própria tela de entrar e os arquivos do Next.
-  matcher: ['/((?!entrar|api/entrar|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!entrar|api/entrar|_next/static|_next/image|favicon.ico|icon.svg).*)'],
 };
