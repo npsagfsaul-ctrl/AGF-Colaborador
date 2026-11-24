@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { COOKIE, tokenEsperado } from '@/lib/sessao';
 import { prisma } from '@/lib/prisma';
 import { competenciaValida, hojeISO, mesDe, nomeCompetencia } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, valorDaRecarga } from '@/lib/beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, ehEstagiario, valorDaRecarga } from '@/lib/beneficio';
 import { dinheiroPorExtenso } from '@/lib/extenso';
 import { diaDaSemana, feriadosDoAno } from '@/lib/feriados';
 
@@ -30,7 +30,7 @@ export async function GET(req: Request) {
   const [a, m] = comp.split('-');
   const ultimo = new Date(Date.UTC(Number(a), Number(m), 0)).getUTCDate();
 
-  const [lista, salvo] = await Promise.all([
+  const [todos, salvo] = await Promise.all([
     prisma.colaborador.findMany({
       where: { ativo: true, beneficios: { some: { tipo: 'vt' } } },
       include: { beneficios: { where: { tipo: 'vt' } }, recargas: { where: { tipo: 'vt', competencia: comp } } },
@@ -38,6 +38,7 @@ export async function GET(req: Request) {
     }),
     prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo: 'vt', competencia: comp } } }),
   ]);
+  const lista = todos.filter((c) => !ehEstagiario(c));
   if (lista.length === 0) return new Response('Ninguém recebe Vale Transporte.', { status: 404 });
 
   const doMes = diasDoMes(comp);

@@ -1,6 +1,17 @@
 import { diaDaSemana, feriadoEm } from './feriados';
 import { lerJornada, minutosDoBloco } from './jornada';
 
+/**
+ * Estagiário não recebe VA nem VT pela agência: já recebe pelo contrato com a
+ * instituição de ensino. Reconhecido pelo cargo, setor ou observação da
+ * jornada ("Estagiário", "estagiária").
+ */
+export function ehEstagiario(c: { cargo?: string | null; setor?: string | null; jornada?: string | null }): boolean {
+  return [c.cargo, c.setor, c.jornada].some(
+    (t) => !!t && /estagi/i.test(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')),
+  );
+}
+
 export const NOME_BENEFICIO = { va: 'Vale Alimentação', vt: 'Vale Transporte' } as const;
 export type TipoBeneficio = keyof typeof NOME_BENEFICIO;
 

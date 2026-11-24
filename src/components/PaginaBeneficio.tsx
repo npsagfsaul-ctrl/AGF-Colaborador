@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { competenciaValida, diasEntre, hojeISO, mesDe, nomeCompetencia, somaMes } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, ehEstagiario, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
 import BeneficioMes from './BeneficioMes';
 import QuemRecebe from './QuemRecebe';
 import BaixarExcel from './BaixarExcel';
@@ -23,7 +23,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
   const opcoes = [somaMes(atual, 1), atual, ...Array.from({ length: 11 }, (_, i) => somaMes(atual, -(i + 1)))];
   const competencia = competenciaValida(mes) && opcoes.includes(mes) ? mes : atual;
 
-  const [colaboradores, mesSalvo] = await Promise.all([
+  const [todos, mesSalvo] = await Promise.all([
     prisma.colaborador.findMany({
       where: { ativo: true },
       include: {
@@ -36,6 +36,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
     prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia } } }),
   ]);
   const doMes = diasDoMes(competencia);
+  const colaboradores = todos.filter((c) => !ehEstagiario(c));
   const diasUteis = mesSalvo?.diasUteis ?? doMes.semana;
 
   const recebem = colaboradores
