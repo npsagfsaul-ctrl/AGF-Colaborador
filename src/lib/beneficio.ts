@@ -124,3 +124,12 @@ export function rotuloValor(b: { porDia: boolean; vezesPorDia?: number }, valor:
   const vezes = b.vezesPorDia ?? 1;
   return vezes > 1 ? `${valor} × ${vezes}/dia` : `${valor}/dia`;
 }
+
+/**
+ * Campo de valor que quer dizer "não recebe": vazio, "-", "não", "não recebe".
+ * Quem escreve a frase em vez de apagar o número não deve levar erro.
+ */
+export function semValor(texto: string): boolean {
+  const t = texto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return t === '' || t === '-' || t.startsWith('nao');
+}

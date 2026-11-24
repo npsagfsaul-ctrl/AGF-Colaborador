@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { executar, type Resultado } from '@/lib/acao';
 import { parseDinheiro } from '@/lib/dinheiro';
 import { competenciaValida, hojeISO } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, diasVA, valorDaRecarga } from '@/lib/beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, diasVA, semValor, valorDaRecarga } from '@/lib/beneficio';
 
 function tipoValido(t: string): asserts t is 'va' | 'vt' {
   if (t !== 'va' && t !== 'vt') throw new Error('Benefício inválido.');
@@ -20,14 +20,14 @@ export async function salvarQuemRecebe(
 ): Promise<Resultado> {
   return executar(async () => {
     tipoValido(tipo);
-    const ruins = linhas.filter((l) => l.valor.trim() && parseDinheiro(l.valor) === null).map((l) => l.nome);
+    const ruins = linhas.filter((l) => !semValor(l.valor) && parseDinheiro(l.valor) === null).map((l) => l.nome);
     if (ruins.length) throw new Error(`Valor mal escrito em: ${ruins.join(', ')}. Use, por exemplo, 8,80.`);
     const vezes = (l: { vezesPorDia: number }) =>
       Number.isInteger(l.vezesPorDia) && l.vezesPorDia >= 1 && l.vezesPorDia <= 8 ? l.vezesPorDia : 1;
 
     await prisma.$transaction(
       linhas.map((l) => {
-        const valor = parseDinheiro(l.valor);
+        const valor = semValor(l.valor) ? null : parseDinheiro(l.valor);
         const chave = { colaboradorId_tipo: { colaboradorId: l.colaboradorId, tipo } };
         return valor === null || valor === 0
           ? prisma.beneficio.deleteMany({ where: { colaboradorId: l.colaboradorId, tipo } })

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { salvarQuemRecebe } from '@/actions/beneficios';
 import { dinheiroParaCampo, parseDinheiro } from '@/lib/dinheiro';
+import { semValor } from '@/lib/beneficio';
 
 interface Linha {
   colaboradorId: string;
@@ -64,7 +65,7 @@ export default function QuemRecebe({ tipo, linhas }: { tipo: string; linhas: Lin
           <tbody>
             {linhas.map((l) => {
               const v = valores[l.colaboradorId];
-              const ruim = v.valor.trim() !== '' && parseDinheiro(v.valor) === null;
+              const ruim = !semValor(v.valor) && parseDinheiro(v.valor) === null;
               return (
                 <tr key={l.colaboradorId}>
                   <td>
