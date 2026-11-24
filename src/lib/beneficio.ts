@@ -82,13 +82,15 @@ export const DESCONTO_FOLHA_VA = 0.2;
 /**
  * Dias de VA no mês: os dias úteis (seg a sex, sem feriado) + meio dia por
  * sábado trabalhado − os dias a descontar (falta, atestado, declaração).
- * Registro antigo, só com `dias`, continua valendo o que foi digitado.
+ *
+ * O campo `dias` antigo (da tela de antes) não entra: ele não aparece mais na
+ * tela do VA, e um número escondido mudando a conta só confunde. Mês já
+ * carregado não é afetado, porque guarda o valor pago.
  */
 export function diasVA(
   diasUteis: number,
-  r?: { dias: number | null; sabados: number | null; descontar: number | null } | null,
+  r?: { sabados: number | null; descontar: number | null } | null,
 ): number {
-  if (r && r.sabados === null && r.descontar === null && r.dias !== null) return r.dias;
   return Math.max(0, diasUteis + (r?.sabados ?? 0) * SABADO_VA - (r?.descontar ?? 0));
 }
 
