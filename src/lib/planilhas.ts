@@ -11,7 +11,7 @@ import {
 } from './datas';
 import { formatarHoras, jaEstaNoRelatorio, saldoDe } from './horas';
 import { lerJornada, minutosDaSemana, type Periodo } from './jornada';
-import { diasDoMes, diasPadrao, diasQueTrabalha, ehEstagiario, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
 import { NOMES_MES, ocorrenciasNoMes, rotuloFrequencia } from './agenda';
 import { feriadosDoAno } from './feriados';
 import { itensDaAgenda } from './agendaDados';
@@ -198,7 +198,7 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     return [{
       nome,
       colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12), N('Dias do mês'), N('Dias'), T('Motivo', 28), R('Valor do mês'), D('Carregado em')],
-      linhas: lista.filter((c) => !ehEstagiario(c)).map((c) => {
+      linhas: lista.filter((c) => !foraDoBeneficio(tipo, c)).map((c) => {
         const b = c.beneficios[0];
         const rc = c.recargas[0];
         const padrao = diasPadrao(diasQueTrabalha(c.jornadaDetalhe), uteis, doMes.sabados);
@@ -209,14 +209,14 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     }];
   }
   const [quem, recargas] = await Promise.all([
-    prisma.beneficio.findMany({ where: { tipo }, include: { colaborador: { select: { nome: true, setor: true, cargo: true, jornada: true } } } }),
+    prisma.beneficio.findMany({ where: { tipo }, include: { colaborador: { select: { nome: true, setor: true, cargo: true, jornada: true, observacao: true } } } }),
     prisma.recargaBeneficio.findMany({ where: { tipo }, include: { colaborador: { select: { nome: true } } }, orderBy: { competencia: 'desc' } }),
   ]);
   return [
     {
       nome: `${tipo.toUpperCase()} - quem recebe`,
       colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12)],
-      linhas: quem.filter((b) => !ehEstagiario(b.colaborador)).map((b) => [b.colaborador.nome, b.colaborador.setor, r(b.valorCentavos), por(b)]),
+      linhas: quem.filter((b) => !foraDoBeneficio(tipo, b.colaborador)).map((b) => [b.colaborador.nome, b.colaborador.setor, r(b.valorCentavos), por(b)]),
     },
     {
       nome: `${tipo.toUpperCase()} - recargas`,

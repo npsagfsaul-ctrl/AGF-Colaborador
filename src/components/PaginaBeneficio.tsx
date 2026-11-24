@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { competenciaValida, diasEntre, hojeISO, mesDe, nomeCompetencia, somaMes } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, ehEstagiario, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
 import BeneficioMes from './BeneficioMes';
 import QuemRecebe from './QuemRecebe';
 import BaixarExcel from './BaixarExcel';
@@ -36,7 +36,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
     prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia } } }),
   ]);
   const doMes = diasDoMes(competencia);
-  const colaboradores = todos.filter((c) => !ehEstagiario(c));
+  const colaboradores = todos.filter((c) => !foraDoBeneficio(tipo, c));
   const diasUteis = mesSalvo?.diasUteis ?? doMes.semana;
 
   const recebem = colaboradores

@@ -12,6 +12,18 @@ export function ehEstagiario(c: { cargo?: string | null; setor?: string | null; 
   );
 }
 
+type Pessoa = { cargo?: string | null; setor?: string | null; jornada?: string | null; observacao?: string | null };
+
+/** Freela cadastrado como colaborador ("Freelance" no cargo, setor ou observação). */
+export function ehFreela(c: Pessoa): boolean {
+  return [c.cargo, c.setor, c.jornada, c.observacao].some((t) => !!t && /freela/i.test(t));
+}
+
+/** Quem fica de fora da lista do benefício: estagiário em VA e VT, freela no VA. */
+export function foraDoBeneficio(tipo: string, c: Pessoa): boolean {
+  return ehEstagiario(c) || (tipo === 'va' && ehFreela(c));
+}
+
 export const NOME_BENEFICIO = { va: 'Vale Alimentação', vt: 'Vale Transporte' } as const;
 export type TipoBeneficio = keyof typeof NOME_BENEFICIO;
 
