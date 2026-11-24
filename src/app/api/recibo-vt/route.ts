@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { competenciaValida, hojeISO, mesDe, nomeCompetencia } from '@/lib/datas';
 import { diasDoMes, diasPadrao, diasQueTrabalha, ehEstagiario, valorDaRecarga } from '@/lib/beneficio';
 import { dinheiroPorExtenso } from '@/lib/extenso';
+import { LOGO_CORREIOS_JPG } from '@/lib/logoCorreios';
 import { diaDaSemana, feriadosDoAno } from '@/lib/feriados';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,7 @@ export async function GET(req: Request) {
   wb.creator = 'DP AGF Saul';
   wb.created = new Date();
   const usados = new Set<string>();
+  const logo = wb.addImage({ base64: LOGO_CORREIOS_JPG, extension: 'jpeg' });
 
   for (const c of lista) {
     const b = c.beneficios[0];
@@ -65,7 +67,7 @@ export async function GET(req: Request) {
       pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
     });
     ws.properties.defaultRowHeight = 18;
-    ws.columns = [{ width: 16 }, { width: 16 }, { width: 22 }, { width: 22 }, { width: 22 }, { width: 4 }, { width: 42 }, { width: 14 }];
+    ws.columns = [{ width: 21 }, { width: 16 }, { width: 22 }, { width: 22 }, { width: 22 }, { width: 4 }, { width: 42 }, { width: 14 }];
 
     const fino = { style: 'thin' as const };
     const caixa = { top: fino, left: fino, bottom: fino, right: fino };
@@ -79,7 +81,10 @@ export async function GET(req: Request) {
 
     // Cabeçalho
     junta('A1:A2');
-    poe('A1', 'AGF Saul', { font: { bold: true, size: 13, color: { argb: 'FF1F3C88' } }, alignment: { vertical: 'middle', horizontal: 'center' } });
+    ws.getRow(1).height = 20;
+    ws.getRow(2).height = 20;
+    // 736×200 reduzido para caber nas duas linhas do cabeçalho.
+    ws.addImage(logo, { tl: { col: 0.08, row: 0.12 }, ext: { width: 140, height: 38 }, editAs: 'oneCell' });
     junta('B1:E1');
     poe('B1', 'Recibo de Vale Transporte', { font: { bold: true, size: 12 }, alignment: { horizontal: 'center' } });
     junta('B2:E2');
