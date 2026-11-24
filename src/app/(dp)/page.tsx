@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { formatarHoras, saldoDe } from '@/lib/horas';
 import { formatarDinheiro } from '@/lib/dinheiro';
 import BaixarExcel from '@/components/BaixarExcel';
+import { itensDaAgenda } from '@/lib/agendaDados';
+import { atrasos as atrasosDaAgenda, ocorrenciasNoMes } from '@/lib/agenda';
 import {
   competenciaAtual,
   dataBR,
@@ -99,9 +101,17 @@ export default async function PainelPage() {
     .map((f) => ({ f, total: f.diarias.reduce((s, d) => s + d.valorCentavos, 0) }))
     .filter((x) => x.total > 0);
 
+  // Agenda: o que tem para hoje e ainda não foi feito, e o que ficou para trás.
+  const agenda = await itensDaAgenda(hoje);
+  const feitosAgenda = new Set(agenda.flatMap((i) => i.feitos.map((d) => `${i.id}|${d}`)));
+  const [anoH, mesH] = hoje.split('-').map(Number);
+  const deHoje = agenda.filter((i) => ocorrenciasNoMes(i, mesH, anoH).includes(hoje) && !feitosAgenda.has(`${i.id}|${hoje}`));
+  const atrasadosAgenda = atrasosDaAgenda(agenda, feitosAgenda, hoje);
+  const tituloAgenda = new Map(agenda.map((i) => [i.id, i.titulo]));
+
   const nada =
     aniversarios.length + asos.length + deFerias.length + feriasAVencer.length +
-    semHolerite.length + devendo.length + freelas.length === 0;
+    semHolerite.length + devendo.length + freelas.length + deHoje.length + atrasadosAgenda.length === 0;
 
   return (
     <div>
@@ -117,6 +127,24 @@ export default async function PainelPage() {
       )}
 
       <div className="dp-paineis">
+        {(deHoje.length > 0 || atrasadosAgenda.length > 0) && (
+          <Bloco titulo="Agenda" cor="var(--dp-acento)">
+            <ul className="dp-lista">
+              {atrasadosAgenda.map((a) => (
+                <li key={a.itemId}>
+                  <Link href="/calendario">{tituloAgenda.get(a.itemId)}</Link>
+                  <span style={{ color: 'var(--danger)', fontWeight: 600 }}>atrasado desde {dataBR(a.desde).slice(0, 5)}</span>
+                </li>
+              ))}
+              {deHoje.map((i) => (
+                <li key={i.id}>
+                  <Link href="/calendario">{i.titulo}</Link>
+                  <span style={{ color: 'var(--dp-acento)', fontWeight: 600 }}>hoje</span>
+                </li>
+              ))}
+            </ul>
+          </Bloco>
+        )}
         {aniversarios.length > 0 && (
           <Bloco titulo="Aniversários" cor="var(--primary)">
             <ul className="dp-lista">

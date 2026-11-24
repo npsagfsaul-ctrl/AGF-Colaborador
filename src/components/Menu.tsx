@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 /** Ícones de traço, no estilo dos menus de RH. Um caminho SVG cada. */
 const ICONES: Record<string, string> = {
+  calendario: 'M4 6h16v14H4zM4 10h16M8 3v5M16 3v5M8 14h2M14 14h2M8 17h2',
   painel: 'M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z',
   pessoas: 'M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 19v-1a4 4 0 0 0-3-3.9M15.5 4.1a3 3 0 0 1 0 5.8',
   bolo: 'M4 20h16M5 20v-7h14v7M12 13V9M12 6.5c.8 0 1.3-.7 1.3-1.4C13.3 4.2 12 3 12 3s-1.3 1.2-1.3 2.1c0 .7.5 1.4 1.3 1.4M5 16c2 1 3 1 4.7 0s2.6-1 4.6 0 2.7 1 4.7 0',
@@ -30,7 +31,12 @@ function Icone({ nome }: { nome: string }) {
 }
 
 const GRUPOS: { titulo?: string; itens: { href: string; rotulo: string; icone: string }[] }[] = [
-  { itens: [{ href: '/', rotulo: 'Painel', icone: 'painel' }] },
+  {
+    itens: [
+      { href: '/', rotulo: 'Painel', icone: 'painel' },
+      { href: '/calendario', rotulo: 'Calendário', icone: 'calendario' },
+    ],
+  },
   {
     titulo: 'Pessoas',
     itens: [

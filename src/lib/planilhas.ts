@@ -13,6 +13,9 @@ import {
 import { formatarHoras, jaEstaNoRelatorio, saldoDe } from './horas';
 import { lerJornada, minutosDaSemana, type Periodo } from './jornada';
 import { NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
+import { NOMES_MES, ocorrenciasNoMes, rotuloFrequencia } from './agenda';
+import { feriadosDoAno } from './feriados';
+import { itensDaAgenda } from './agendaDados';
 
 /**
  * O conteúdo de cada planilha, sem nada de Excel: abas, colunas e linhas.
@@ -264,9 +267,38 @@ async function freelas(): Promise<Aba[]> {
   ];
 }
 
+async function agenda(mes?: string): Promise<Aba[]> {
+  const hoje = hojeISO();
+  const itens = await itensDaAgenda(hoje);
+  const comp = mes ?? mesDe(hoje);
+  const [ano, m] = comp.split('-').map(Number);
+  const feitos = new Set(itens.flatMap((i) => i.feitos.map((d) => `${i.id}|${d}`)));
+  const linhas: Celula[][] = itens
+    .flatMap((i) => ocorrenciasNoMes(i, m, ano).map((data) => ({ i, data })))
+    .sort((a, b) => a.data.localeCompare(b.data))
+    .map(({ i, data }) => {
+      const feito = feitos.has(`${i.id}|${data}`);
+      return [d(data), i.titulo, feito ? 'Feito' : data < hoje ? 'Atrasado' : 'A fazer', i.observacao];
+    });
+  const feriados = feriadosDoAno(ano).filter((f) => Number(f.data.slice(5, 7)) === m);
+  return [
+    {
+      nome: `Agenda ${NOMES_MES[m - 1]}`,
+      colunas: [D('Dia'), T('Compromisso', 40), T('Situação', 11), T('Observação', 30)],
+      linhas: [...linhas, ...feriados.map((f) => [d(f.data), f.nome, f.facultativo ? 'Ponto facultativo' : 'Feriado nacional', null])]
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    },
+    {
+      nome: 'Compromissos',
+      colunas: [T('Compromisso', 40), T('Repetição', 40), T('Situação', 10), T('Observação', 30)],
+      linhas: itens.map((i) => [i.titulo, rotuloFrequencia(i), i.ativo ? 'Ativo' : 'Pausado', i.observacao]),
+    },
+  ];
+}
+
 /* ─── Entrada ─── */
 
-export const TELAS = ['colaboradores', 'horas', 'horarios', 'aniversarios', 'salarios', 'holerites', 'va', 'vt', 'plano', 'metas', 'freelas', 'tudo'] as const;
+export const TELAS = ['agenda', 'colaboradores', 'horas', 'horarios', 'aniversarios', 'salarios', 'holerites', 'va', 'vt', 'plano', 'metas', 'freelas', 'tudo'] as const;
 export type Tela = (typeof TELAS)[number];
 
 /** Monta a planilha da tela. `mes` só vale para as telas que são por mês. */
@@ -277,6 +309,7 @@ export async function montarPlanilha(tela: Tela, mesPedido: string | null): Prom
   const dia = dataBR(hoje).replace(/\//g, '-');
 
   switch (tela) {
+    case 'agenda': return { arquivo: `Calendário DP${sufixoMes}`, abas: await agenda(mes) };
     case 'colaboradores': return { arquivo: `Colaboradores - ${dia}`, abas: await colaboradores() };
     case 'horas': return { arquivo: `Banco de horas - ${dia}`, abas: await horas() };
     case 'horarios': return { arquivo: `Horários - ${dia}`, abas: await horarios() };
@@ -291,7 +324,7 @@ export async function montarPlanilha(tela: Tela, mesPedido: string | null): Prom
     case 'tudo': {
       // Tudo, com o histórico inteiro dos assuntos que são por mês.
       const partes = await Promise.all([
-        colaboradores(), horarios(), horas(), salarios(), holerites(),
+        agenda(), colaboradores(), horarios(), horas(), salarios(), holerites(),
         beneficio('va'), beneficio('vt'), plano(), metas(), freelas(), aniversarios(),
       ]);
       return { arquivo: `Backup DP AGF Saul - ${dia}`, abas: partes.flat() };

@@ -240,3 +240,39 @@ model Diaria {
 
   @@index([freelancerId])
 }
+
+/// Um compromisso da agenda do DP (prazo, rotina). Veio da agenda dos setores
+/// do Portal; a regra de dia útil (seg a sex, sem feriado) fica em lib/agenda.
+model ItemAgenda {
+  id         String  @id @default(cuid())
+  titulo     String
+  observacao String?
+
+  /// DIAS_UTEIS, SEMANAL, MENSAL, MENSAL_SEMANA ou UNICA
+  frequencia  String
+  diaSemana   Int?
+  diaMes      Int?
+  semanaDoMes Int?
+  dataUnica   String?
+  intervaloMeses Int  @default(1)
+  mesBase        Int?
+
+  ativo Boolean @default(true)
+
+  feitos AgendaFeito[]
+
+  createdAt DateTime @default(now())
+}
+
+/// Uma ocorrência marcada como feita. Não ter a linha = a fazer (ou atrasada).
+model AgendaFeito {
+  id     String     @id @default(cuid())
+  itemId String
+  item   ItemAgenda @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /// O dia em que a ocorrência era devida, aaaa-mm-dd.
+  data      String
+  createdAt DateTime @default(now())
+
+  @@unique([itemId, data])
+}
