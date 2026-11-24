@@ -137,6 +137,9 @@ model Beneficio {
   valorCentavos Int
   /// true: o valor é por dia trabalhado. false: é o valor do mês cheio.
   porDia        Boolean @default(true)
+  /// Quantas vezes o valor entra por dia: no VT, passagens por dia (ida e
+  /// volta = 2). 1 nos registros antigos, em que o valor já era o do dia.
+  vezesPorDia   Int     @default(1)
 
   @@unique([colaboradorId, tipo])
 }

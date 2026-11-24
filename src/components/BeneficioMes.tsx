@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { definirDiasUteis, marcarRecarga, salvarDiasRecarga } from '@/actions/beneficios';
 import { dataBR } from '@/lib/datas';
 import { formatarDinheiro } from '@/lib/dinheiro';
+import { rotuloValor } from '@/lib/beneficio';
 import type { Resultado } from '@/lib/acao';
 import Avatar from './Avatar';
 
@@ -14,6 +15,10 @@ interface Linha {
   setor: string | null;
   valorCentavos: number;
   porDia: boolean;
+  vezesPorDia: number;
+  /** Os dias dela no mês sem desconto: seg a sex, mais sábados se trabalha sábado. */
+  padrao: number;
+  sabado: boolean;
   dias: number | null;
   motivo: string;
   carregadoEm: string | null;
@@ -61,9 +66,9 @@ export default function BeneficioMes({
     const t = diasTexto.trim();
     const dias = t === '' ? null : Number(t);
     if (dias !== null && !Number.isInteger(dias)) return setErro(`Dias de ${l.nome}: use um número inteiro.`);
-    const mesmoDias = (dias ?? diasUteis) === (l.dias ?? diasUteis);
+    const mesmoDias = (dias ?? l.padrao) === (l.dias ?? l.padrao);
     if (mesmoDias && motivo.trim() === l.motivo) return;
-    rodar(() => salvarDiasRecarga(tipo, competencia, l.id, dias === diasUteis ? null : dias, motivo));
+    rodar(() => salvarDiasRecarga(tipo, competencia, l.id, dias === l.padrao ? null : dias, motivo));
   }
 
   return (
@@ -140,9 +145,8 @@ export default function BeneficioMes({
             <tbody>
               {linhas.map((l) => (
                 <LinhaRecarga
-                  key={`${competencia}-${l.id}-${l.dias}-${l.motivo}`}
+                  key={`${competencia}-${l.id}-${l.dias}-${l.motivo}-${l.padrao}`}
                   l={l}
-                  diasUteis={diasUteis}
                   ocupado={ocupado}
                   onSalvar={(d, m) => salvarLinha(l, d, m)}
                   onMarcar={() => rodar(() => marcarRecarga(tipo, competencia, [l.id], !l.carregadoEm))}
@@ -158,20 +162,18 @@ export default function BeneficioMes({
 
 function LinhaRecarga({
   l,
-  diasUteis,
   ocupado,
   onSalvar,
   onMarcar,
 }: {
   l: Linha;
-  diasUteis: number;
   ocupado: boolean;
   onSalvar: (dias: string, motivo: string) => void;
   onMarcar: () => void;
 }) {
-  const [dias, setDias] = useState(String(l.dias ?? diasUteis));
+  const [dias, setDias] = useState(String(l.dias ?? l.padrao));
   const [motivo, setMotivo] = useState(l.motivo);
-  const desconto = Number(dias) < diasUteis;
+  const desconto = Number(dias) < l.padrao;
   const travado = !!l.carregadoEm;
 
   return (
@@ -191,6 +193,7 @@ function LinhaRecarga({
           <Avatar nome={l.nome} tamanho={28} />
           <div>
             <div style={{ fontWeight: 600 }}>{l.nome}</div>
+            {l.sabado && <div className="text-muted" style={{ fontSize: '0.7rem' }}>trabalha sábado</div>}
             {l.ferias.length > 0 && (
               <div style={{ fontSize: '0.7rem', color: 'var(--warning)', fontWeight: 600 }}>
                 férias {l.ferias.map((f) => `${dataBR(f.inicio).slice(0, 5)}–${dataBR(f.fim).slice(0, 5)}`).join(', ')}
@@ -225,7 +228,7 @@ function LinhaRecarga({
       <td style={{ textAlign: 'right' }}>
         <div className="dp-num">{formatarDinheiro(l.aCarregar)}</div>
         <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-          {travado ? `carregado ${dataBR(l.carregadoEm).slice(0, 5)}` : `${formatarDinheiro(l.valorCentavos)}${l.porDia ? '/dia' : '/mês'}`}
+          {travado ? `carregado ${dataBR(l.carregadoEm).slice(0, 5)}` : rotuloValor(l, formatarDinheiro(l.valorCentavos))}
         </div>
       </td>
     </tr>

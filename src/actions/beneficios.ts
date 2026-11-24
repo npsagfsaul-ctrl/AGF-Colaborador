@@ -3,8 +3,8 @@
 import { prisma } from '@/lib/prisma';
 import { executar, type Resultado } from '@/lib/acao';
 import { parseDinheiro } from '@/lib/dinheiro';
-import { competenciaValida, diasUteisDoMes, hojeISO } from '@/lib/datas';
-import { valorDaRecarga } from '@/lib/beneficio';
+import { competenciaValida, hojeISO } from '@/lib/datas';
+import { diasDoMes, diasPadrao, diasQueTrabalha, valorDaRecarga } from '@/lib/beneficio';
 
 function tipoValido(t: string): asserts t is 'va' | 'vt' {
   if (t !== 'va' && t !== 'vt') throw new Error('Benefício inválido.');
@@ -16,12 +16,14 @@ function tipoValido(t: string): asserts t is 'va' | 'vt' {
  */
 export async function salvarQuemRecebe(
   tipo: string,
-  linhas: { colaboradorId: string; nome: string; valor: string; porDia: boolean }[],
+  linhas: { colaboradorId: string; nome: string; valor: string; porDia: boolean; vezesPorDia: number }[],
 ): Promise<Resultado> {
   return executar(async () => {
     tipoValido(tipo);
     const ruins = linhas.filter((l) => l.valor.trim() && parseDinheiro(l.valor) === null).map((l) => l.nome);
     if (ruins.length) throw new Error(`Valor mal escrito em: ${ruins.join(', ')}. Use, por exemplo, 8,80.`);
+    const vezes = (l: { vezesPorDia: number }) =>
+      Number.isInteger(l.vezesPorDia) && l.vezesPorDia >= 1 && l.vezesPorDia <= 8 ? l.vezesPorDia : 1;
 
     await prisma.$transaction(
       linhas.map((l) => {
@@ -31,8 +33,8 @@ export async function salvarQuemRecebe(
           ? prisma.beneficio.deleteMany({ where: { colaboradorId: l.colaboradorId, tipo } })
           : prisma.beneficio.upsert({
               where: chave,
-              create: { colaboradorId: l.colaboradorId, tipo, valorCentavos: valor, porDia: l.porDia },
-              update: { valorCentavos: valor, porDia: l.porDia },
+              create: { colaboradorId: l.colaboradorId, tipo, valorCentavos: valor, porDia: l.porDia, vezesPorDia: vezes(l) },
+              update: { valorCentavos: valor, porDia: l.porDia, vezesPorDia: vezes(l) },
             });
       }),
     );
@@ -44,7 +46,7 @@ export async function definirDiasUteis(tipo: string, competencia: string, dias: 
     tipoValido(tipo);
     if (!competenciaValida(competencia)) throw new Error('Mês inválido.');
     if (!Number.isInteger(dias) || dias < 0 || dias > 31) throw new Error('Dias úteis entre 0 e 31.');
-    if (dias === diasUteisDoMes(competencia)) {
+    if (dias === diasDoMes(competencia).semana) {
       await prisma.mesBeneficio.deleteMany({ where: { tipo, competencia } });
     } else {
       await prisma.mesBeneficio.upsert({
@@ -56,7 +58,7 @@ export async function definirDiasUteis(tipo: string, competencia: string, dias: 
   });
 }
 
-/** Dias e motivo de um colaborador no mês. `dias` null = os dias úteis do mês. */
+/** Dias e motivo de um colaborador no mês. `dias` null = os dias normais dele no mês. */
 export async function salvarDiasRecarga(
   tipo: string,
   competencia: string,
@@ -95,18 +97,23 @@ export async function marcarRecarga(
     if (!competenciaValida(competencia)) throw new Error('Mês inválido.');
 
     const [beneficios, recargas, mes] = await Promise.all([
-      prisma.beneficio.findMany({ where: { tipo, colaboradorId: { in: colaboradorIds } } }),
+      prisma.beneficio.findMany({
+        where: { tipo, colaboradorId: { in: colaboradorIds } },
+        include: { colaborador: { select: { jornadaDetalhe: true } } },
+      }),
       prisma.recargaBeneficio.findMany({ where: { tipo, competencia, colaboradorId: { in: colaboradorIds } } }),
       prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia } } }),
     ]);
-    const diasUteis = mes?.diasUteis ?? diasUteisDoMes(competencia);
+    const doMes = diasDoMes(competencia);
+    const diasUteis = mes?.diasUteis ?? doMes.semana;
     const hoje = hojeISO();
 
     await prisma.$transaction(
       colaboradorIds.map((colaboradorId) => {
         const b = beneficios.find((x) => x.colaboradorId === colaboradorId);
         const r = recargas.find((x) => x.colaboradorId === colaboradorId);
-        const valor = carregado && b ? valorDaRecarga(b, r?.dias ?? diasUteis, diasUteis) : null;
+        const padrao = b ? diasPadrao(diasQueTrabalha(b.colaborador.jornadaDetalhe), diasUteis, doMes.sabados) : 0;
+        const valor = carregado && b ? valorDaRecarga(b, r?.dias ?? padrao, padrao) : null;
         const dados = { carregadoEm: carregado ? hoje : null, valorCentavos: valor };
         return prisma.recargaBeneficio.upsert({
           where: { colaboradorId_tipo_competencia: { colaboradorId, tipo, competencia } },

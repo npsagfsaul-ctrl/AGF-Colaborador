@@ -11,7 +11,17 @@ interface Linha {
   setor: string | null;
   valorCentavos: number | null;
   porDia: boolean;
+  vezesPorDia: number;
 }
+
+/**
+ * No VT o valor é o da passagem, e a escolha diz quantas por dia.
+ * O "por dia (valor do dia)" fica para quem já tinha o valor do dia todo.
+ */
+const OPCOES = {
+  vt: [['2', 'ida e volta'], ['4', '2 conduções cada lado'], ['1', 'só 1 por dia'], ['mes', 'por mês']],
+  va: [['1', 'por dia'], ['mes', 'por mês']],
+} as const;
 
 /**
  * Quem recebe e quanto, todo mundo numa lista. Valor em branco = não recebe.
@@ -20,7 +30,7 @@ interface Linha {
 export default function QuemRecebe({ tipo, linhas }: { tipo: string; linhas: Linha[] }) {
   const router = useRouter();
   const [valores, setValores] = useState(() =>
-    Object.fromEntries(linhas.map((l) => [l.colaboradorId, { valor: dinheiroParaCampo(l.valorCentavos), porDia: l.porDia }])),
+    Object.fromEntries(linhas.map((l) => [l.colaboradorId, { valor: dinheiroParaCampo(l.valorCentavos), porDia: l.porDia, vezesPorDia: l.vezesPorDia }])),
   );
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -74,12 +84,17 @@ export default function QuemRecebe({ tipo, linhas }: { tipo: string; linhas: Lin
                   <td>
                     <select
                       className="form-select"
-                      value={v.porDia ? 'dia' : 'mes'}
-                      onChange={(e) => setValores((s) => ({ ...s, [l.colaboradorId]: { ...v, porDia: e.target.value === 'dia' } }))}
+                      value={v.porDia ? String(v.vezesPorDia) : 'mes'}
+                      onChange={(e) => {
+                        const x = e.target.value;
+                        setValores((s) => ({
+                          ...s,
+                          [l.colaboradorId]: { ...v, porDia: x !== 'mes', vezesPorDia: x === 'mes' ? 1 : Number(x) },
+                        }));
+                      }}
                       style={{ width: 'auto' }}
                     >
-                      <option value="dia">por dia</option>
-                      <option value="mes">por mês</option>
+                      {OPCOES[tipo === 'vt' ? 'vt' : 'va'].map(([valor, nome]) => <option key={valor} value={valor}>{nome}</option>)}
                     </select>
                   </td>
                 </tr>

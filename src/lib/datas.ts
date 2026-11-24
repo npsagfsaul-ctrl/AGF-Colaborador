@@ -227,18 +227,6 @@ export function somaMes(comp: string, meses: number): string {
   return somaMeses(`${comp}-01`, meses).slice(0, 7);
 }
 
-/** Segunda a sexta do mês. Feriado não entra na conta: ajusta-se à mão. */
-export function diasUteisDoMes(comp: string): number {
-  const [a, m] = comp.split('-').map(Number);
-  const total = new Date(Date.UTC(a, m, 0)).getUTCDate();
-  let n = 0;
-  for (let d = 1; d <= total; d++) {
-    const s = new Date(Date.UTC(a, m - 1, d)).getUTCDay();
-    if (s !== 0 && s !== 6) n++;
-  }
-  return n;
-}
-
 export function competenciaValida(c: string | null | undefined): c is string {
   return !!c && /^\d{4}-(0[1-9]|1[0-2])$/.test(c);
 }

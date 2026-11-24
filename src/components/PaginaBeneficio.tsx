@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { competenciaValida, diasEntre, diasUteisDoMes, hojeISO, mesDe, nomeCompetencia, somaMes } from '@/lib/datas';
-import { NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
+import { competenciaValida, diasEntre, hojeISO, mesDe, nomeCompetencia, somaMes } from '@/lib/datas';
+import { diasDoMes, diasPadrao, diasQueTrabalha, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
 import BeneficioMes from './BeneficioMes';
 import QuemRecebe from './QuemRecebe';
 import BaixarExcel from './BaixarExcel';
@@ -35,25 +35,31 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
     }),
     prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia } } }),
   ]);
-  const diasUteis = mesSalvo?.diasUteis ?? diasUteisDoMes(competencia);
+  const doMes = diasDoMes(competencia);
+  const diasUteis = mesSalvo?.diasUteis ?? doMes.semana;
 
   const recebem = colaboradores
     .filter((c) => c.beneficios[0])
     .map((c) => {
       const b = c.beneficios[0];
       const r = c.recargas[0];
-      const dias = r?.dias ?? diasUteis;
+      const quando = diasQueTrabalha(c.jornadaDetalhe);
+      const padrao = diasPadrao(quando, diasUteis, doMes.sabados);
+      const dias = r?.dias ?? padrao;
       return {
         id: c.id,
         nome: c.nome,
         setor: c.setor,
         valorCentavos: b.valorCentavos,
         porDia: b.porDia,
+        vezesPorDia: b.vezesPorDia,
+        padrao,
+        sabado: quando.sabado,
         dias: r?.dias ?? null,
         motivo: r?.motivo ?? '',
         carregadoEm: r?.carregadoEm ?? null,
         // Carregado: vale o que foi gravado na hora. Senão, a conta de agora.
-        aCarregar: r?.carregadoEm && r.valorCentavos !== null ? r.valorCentavos : valorDaRecarga(b, dias, diasUteis),
+        aCarregar: r?.carregadoEm && r.valorCentavos !== null ? r.valorCentavos : valorDaRecarga(b, dias, padrao),
         ferias: feriasNoMes(c.ferias, competencia),
       };
     });
@@ -62,7 +68,14 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
     <div>
       <div className="dp-titulo">
         <h1 className="page-title">{NOME_BENEFICIO[tipo]}</h1>
-        <div className="dp-direita"><BaixarExcel tela={tipo} mes={competencia} /></div>
+        <div className="dp-direita">
+          {tipo === 'vt' && recebem.length > 0 && (
+            <a href={`/api/recibo-vt?mes=${competencia}`} className="btn btn-primary btn-sm" download>
+              Baixar recibo
+            </a>
+          )}
+          <BaixarExcel tela={tipo} mes={competencia} />
+        </div>
       </div>
 
       <BeneficioMes
@@ -80,7 +93,8 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
           nome: c.nome,
           setor: c.setor,
           valorCentavos: c.beneficios[0]?.valorCentavos ?? null,
-          porDia: c.beneficios[0]?.porDia ?? tipo === 'vt',
+          porDia: c.beneficios[0]?.porDia ?? true,
+          vezesPorDia: c.beneficios[0]?.vezesPorDia ?? (tipo === 'vt' ? 2 : 1),
         }))}
       />
     </div>

@@ -2,7 +2,6 @@ import { prisma } from './prisma';
 import {
   competenciaValida,
   dataBR,
-  diasUteisDoMes,
   hojeISO,
   mesDe,
   nomeCompetencia,
@@ -12,7 +11,7 @@ import {
 } from './datas';
 import { formatarHoras, jaEstaNoRelatorio, saldoDe } from './horas';
 import { lerJornada, minutosDaSemana, type Periodo } from './jornada';
-import { NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
+import { diasDoMes, diasPadrao, diasQueTrabalha, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
 import { NOMES_MES, ocorrenciasNoMes, rotuloFrequencia } from './agenda';
 import { feriadosDoAno } from './feriados';
 import { itensDaAgenda } from './agendaDados';
@@ -177,6 +176,12 @@ async function holerites(mes?: string): Promise<Aba[]> {
   }];
 }
 
+/** "dia", "2 por dia", "mês". */
+function por(b: { porDia: boolean; vezesPorDia: number }) {
+  if (!b.porDia) return 'mês';
+  return b.vezesPorDia > 1 ? `${b.vezesPorDia} por dia` : 'dia';
+}
+
 async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
   const nome = NOME_BENEFICIO[tipo];
   if (mes) {
@@ -188,16 +193,18 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
       }),
       prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia: mes } } }),
     ]);
-    const uteis = salvo?.diasUteis ?? diasUteisDoMes(mes);
+    const doMes = diasDoMes(mes);
+    const uteis = salvo?.diasUteis ?? doMes.semana;
     return [{
       nome,
-      colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 6), N('Dias úteis'), N('Dias'), T('Motivo', 28), R('Valor do mês'), D('Carregado em')],
+      colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12), N('Dias do mês'), N('Dias'), T('Motivo', 28), R('Valor do mês'), D('Carregado em')],
       linhas: lista.map((c) => {
         const b = c.beneficios[0];
         const rc = c.recargas[0];
-        const dias = rc?.dias ?? uteis;
-        const valor = rc?.carregadoEm && rc.valorCentavos !== null ? rc.valorCentavos : valorDaRecarga(b, dias, uteis);
-        return [c.nome, c.setor, r(b.valorCentavos), b.porDia ? 'dia' : 'mês', uteis, dias, rc?.motivo ?? null, r(valor), d(rc?.carregadoEm)];
+        const padrao = diasPadrao(diasQueTrabalha(c.jornadaDetalhe), uteis, doMes.sabados);
+        const dias = rc?.dias ?? padrao;
+        const valor = rc?.carregadoEm && rc.valorCentavos !== null ? rc.valorCentavos : valorDaRecarga(b, dias, padrao);
+        return [c.nome, c.setor, r(b.valorCentavos), por(b), padrao, dias, rc?.motivo ?? null, r(valor), d(rc?.carregadoEm)];
       }),
     }];
   }
@@ -208,8 +215,8 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
   return [
     {
       nome: `${tipo.toUpperCase()} - quem recebe`,
-      colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 6)],
-      linhas: quem.map((b) => [b.colaborador.nome, b.colaborador.setor, r(b.valorCentavos), b.porDia ? 'dia' : 'mês']),
+      colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12)],
+      linhas: quem.map((b) => [b.colaborador.nome, b.colaborador.setor, r(b.valorCentavos), por(b)]),
     },
     {
       nome: `${tipo.toUpperCase()} - recargas`,
