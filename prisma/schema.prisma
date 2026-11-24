@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Um colaborador da agência, do ponto de vista do Departamento Pessoal.
+///
+/// Todas as datas são texto "aaaa-mm-dd", e não DateTime: o servidor roda em
+/// UTC, e uma data sem hora vira o dia anterior com facilidade. Aniversário e
+/// vencimento de ASO são exatamente o tipo de coisa que não pode escorregar
+/// um dia.
+model Colaborador {
+  id     String  @id @default(cuid())
+  nome   String
+  setor  String?
+  cargo  String?
+  ativo  Boolean @default(true)
+
+  nascimento String?
+  admissao   String?
+
+  /// Último exame periódico e de quantos em quantos meses ele vence.
+  asoUltimo String?
+  asoMeses  Int     @default(12)
+
+  /// Contrato sem banco de horas fica fora do Controle de Horas, mas continua
+  /// no resto (férias, ASO, holerite).
+  controlaHoras Boolean @default(true)
+
+  /// Jornada contratada: observação curta + os horários em dois blocos
+  /// (segunda a sexta e sábado). Só informativo — quem calcula hora
+  /// trabalhada é o sistema de ponto.
+  jornada        String?
+  jornadaDetalhe Json?
+
+  /// Saldo do banco de horas copiado do relatório do ponto, e a data dele.
+  /// O site continua a conta a partir daqui; nunca refaz a conta do ponto.
+  saldoInicialMinutos Int     @default(0)
+  saldoInicialEm      String?
+
+  observacao String?
+
+  lancamentos LancamentoHoras[]
+  ferias      Ferias[]
+  holerites   Holerite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nome])
+}
+
+/// Um movimento no banco de horas, em MINUTOS com sinal (negativo = devendo).
+/// Minuto e não hora decimal: 03:47 em decimal é 3,7833… e perde um pedaço a
+/// cada soma, num número que se confere batendo com o relatório do ponto.
+model LancamentoHoras {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  data    String
+  minutos Int
+  motivo  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([colaboradorId])
+}
+
+/// Um período de férias tirado (ou marcado), do primeiro ao último dia.
+model Ferias {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  inicio     String
+  fim        String
+  observacao String?
+
+  createdAt DateTime @default(now())
+
+  @@index([colaboradorId])
+}
+
+/// A entrega do holerite de uma competência ("2026-10") a um colaborador.
+/// Existir o registro com `entregueEm` preenchido = entregue.
+model Holerite {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  competencia String
+  entregueEm  String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([colaboradorId, competencia])
+}
