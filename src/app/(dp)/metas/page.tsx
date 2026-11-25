@@ -42,6 +42,10 @@ export default async function MetasPage({ searchParams }: { searchParams: Promis
             email: c.email,
             senha: c.senha,
             proximoPagamento: c.proximoPagamento,
+            valorCentavos: c.valorCentavos,
+            telefone: c.telefone,
+            linkConvite: c.linkConvite,
+            endereco: c.endereco,
             observacao: c.observacao,
             membros: c.colaboradores,
           }))}

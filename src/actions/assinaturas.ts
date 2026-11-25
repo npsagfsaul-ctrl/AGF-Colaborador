@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { executar, texto, type Resultado } from '@/lib/acao';
 import { somaMeses, valida } from '@/lib/datas';
+import { parseDinheiro } from '@/lib/dinheiro';
 
 /** Cria (id null) ou altera uma conta de assinatura e quem usa. */
 export async function salvarConta(id: string | null, fd: FormData): Promise<Resultado> {
@@ -11,12 +12,21 @@ export async function salvarConta(id: string | null, fd: FormData): Promise<Resu
     if (!servico) throw new Error('Escreva a assinatura (HBO Max, Spotify…).');
     const proximoPagamento = texto(fd, 'proximoPagamento');
     if (proximoPagamento && !valida(proximoPagamento)) throw new Error('Próximo pagamento: data inválida.');
+    const valor = texto(fd, 'valor');
+    const valorCentavos = valor ? parseDinheiro(valor) : null;
+    if (valor && valorCentavos === null) throw new Error('Valor mal escrito. Use, por exemplo, 40,90.');
+    const link = texto(fd, 'linkConvite');
+    if (link && !/^https?:\/\//i.test(link)) throw new Error('O link de convite tem de começar com https://');
     const membros = fd.getAll('membros').map(String).filter(Boolean).map((cid) => ({ id: cid }));
     const dados = {
       servico,
       email: texto(fd, 'email'),
       senha: texto(fd, 'senha'),
       proximoPagamento,
+      valorCentavos,
+      telefone: texto(fd, 'telefone'),
+      linkConvite: link,
+      endereco: texto(fd, 'endereco'),
       observacao: texto(fd, 'observacao'),
     };
     if (id) {

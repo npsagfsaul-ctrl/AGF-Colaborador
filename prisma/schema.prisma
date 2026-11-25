@@ -237,6 +237,12 @@ model ContaAssinatura {
   email            String?
   senha            String?
   proximoPagamento String?
+  /// Valor da cobrança, em centavos.
+  valorCentavos    Int?
+  telefone         String?
+  /// Spotify Família: link do convite e o endereço que o convidado confirma.
+  linkConvite      String?
+  endereco         String?
   observacao       String?
   colaboradores    Colaborador[] @relation("MembrosDaConta")
 

@@ -456,11 +456,11 @@ async function metas(mes?: string): Promise<Aba[]> {
     include: { colaboradores: { select: { nome: true }, orderBy: { nome: 'asc' } } },
     orderBy: [{ servico: 'asc' }, { createdAt: 'asc' }],
   });
-  // A senha não vai para o Excel: a planilha sai do site e circula.
+  // A senha e o link de convite não vão para o Excel: a planilha sai do site e circula.
   const abaContas: Aba = {
     nome: 'Contas das assinaturas',
-    colunas: [T('Assinatura', 14), T('Quem usa', 40), T('E-mail', 30), D('Próximo pagamento'), T('Observação', 30)],
-    linhas: contas.map((c) => [c.servico, c.colaboradores.map((m) => m.nome).join(', '), c.email, d(c.proximoPagamento), c.observacao]),
+    colunas: [T('Assinatura', 14), T('Quem usa', 40), T('E-mail', 30), T('Telefone', 16), D('Próximo pagamento'), R('Valor'), T('Observação', 30)],
+    linhas: contas.map((c) => [c.servico, c.colaboradores.map((m) => m.nome).join(', '), c.email, c.telefone, d(c.proximoPagamento), r(c.valorCentavos), c.observacao]),
   };
   return [abaContas, {
     nome: 'Metas',

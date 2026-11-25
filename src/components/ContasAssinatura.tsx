@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apagarConta, pagouConta, salvarConta } from '@/actions/assinaturas';
 import { dataBR, diasEntre } from '@/lib/datas';
+import { dinheiroParaCampo, formatarDinheiro } from '@/lib/dinheiro';
 import type { Resultado } from '@/lib/acao';
 import Olho from './Olho';
 
@@ -13,14 +14,32 @@ export interface Conta {
   email: string | null;
   senha: string | null;
   proximoPagamento: string | null;
+  valorCentavos: number | null;
+  telefone: string | null;
+  linkConvite: string | null;
+  endereco: string | null;
   observacao: string | null;
   membros: { id: string; nome: string }[];
 }
 
-/** A mensagem que vai para o colaborador, no texto que o DP já usava. */
+/**
+ * A mensagem que vai para o colaborador. Conta com link de convite (Spotify
+ * Família): o convite e o endereço. Senão (HBO): o login, no texto do DP.
+ */
 function mensagem(c: Conta): string {
   const h = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' }).format(new Date()));
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  if (c.linkConvite) {
+    return [
+      `${saudacao}, tudo bem?`,
+      `Segue o convite para o grupo do *${c.servico.toUpperCase()}*! 🎧`,
+      'Entre com a sua conta pelo link abaixo:',
+      c.linkConvite,
+      ...(c.endereco ? ['', 'Quando pedir o endereço, use:', c.endereco] : []),
+      '',
+      '*LEMBRANDO QUE É DE USO EXCLUSIVO DO COLABORADOR*',
+    ].join('\n');
+  }
   return [
     `${saudacao}, tudo bem?`,
     `Venho reforçar os dados do seu acesso na *${c.servico.toUpperCase()}*! 🎬`,
@@ -98,6 +117,11 @@ export default function ContasAssinatura({
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Contas das assinaturas</h2>
+        {contas.some((c) => c.valorCentavos) && (
+          <span className="text-muted" style={{ fontSize: '0.875rem' }}>
+            {formatarDinheiro(contas.reduce((s, c) => s + (c.valorCentavos ?? 0), 0))} por mês
+          </span>
+        )}
         {editando !== 'nova' && (
           <button type="button" className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setEditando('nova')}>
             + Nova conta
@@ -119,22 +143,22 @@ export default function ContasAssinatura({
           const corPag = dias === null ? undefined : dias < 0 ? 'var(--danger)' : dias <= 7 ? 'var(--warning)' : undefined;
           const ver = verSenha.has(c.id);
           return (
-            <div key={c.id} className="card" style={{ display: 'grid', gap: 8, alignContent: 'start' }}>
+            <div key={c.id} className="card" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8, alignContent: 'start', minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span className="dp-etiqueta">{c.servico}</span>
                 <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: corPag ?? 'var(--text-muted)', fontWeight: corPag ? 700 : undefined }}>
                   {c.proximoPagamento
-                    ? `paga ${dataBR(c.proximoPagamento)}${dias !== null && dias < 0 ? ' · venceu' : dias === 0 ? ' · hoje' : ''}`
+                    ? `paga ${dataBR(c.proximoPagamento)}${c.valorCentavos ? ` · ${formatarDinheiro(c.valorCentavos)}` : ''}${dias !== null && dias < 0 ? ' · venceu' : dias === 0 ? ' · hoje' : ''}`
                     : 'sem data de pagamento'}
                 </span>
               </div>
               <div style={{ fontWeight: 700 }}>
                 {c.membros.length ? c.membros.map((m) => m.nome.split(' ')[0]).join(', ') : <span className="text-muted">ninguém usando</span>}
               </div>
-              <div style={{ fontSize: '0.875rem', display: 'grid', gap: 4 }}>
+              <div style={{ fontSize: '0.875rem', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 4 }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span className="text-muted" style={{ width: 48 }}>E-mail</span>
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.email ?? '—'}</span>
+                  <span className="text-muted" style={{ width: 64 }}>E-mail</span>
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email ?? '—'}</span>
                   {c.email && (
                     <button type="button" className="btn btn-outline btn-sm" onClick={() => copiar(`${c.id}-e`, c.email!)}>
                       {copiado === `${c.id}-e` ? 'Copiado' : 'Copiar'}
@@ -142,7 +166,7 @@ export default function ContasAssinatura({
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span className="text-muted" style={{ width: 48 }}>Senha</span>
+                  <span className="text-muted" style={{ width: 64 }}>Senha</span>
                   <span className="dp-num" style={{ flex: 1 }}>{c.senha ? (ver ? c.senha : '••••••••') : '—'}</span>
                   {c.senha && (
                     <>
@@ -157,11 +181,24 @@ export default function ContasAssinatura({
                     </>
                   )}
                 </div>
+                {[
+                  { k: 't', rotulo: 'Telefone', v: c.telefone },
+                  { k: 'l', rotulo: 'Convite', v: c.linkConvite },
+                  { k: 'n', rotulo: 'Endereço', v: c.endereco },
+                ].filter((x) => x.v).map((x) => (
+                  <div key={x.k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span className="text-muted" style={{ width: 64 }}>{x.rotulo}</span>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.v!}>{x.v}</span>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => copiar(`${c.id}-${x.k}`, x.v!)}>
+                      {copiado === `${c.id}-${x.k}` ? 'Copiado' : 'Copiar'}
+                    </button>
+                  </div>
+                ))}
               </div>
               {c.observacao && <div className="text-muted" style={{ fontSize: '0.8125rem' }}>{c.observacao}</div>}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => copiar(`${c.id}-m`, mensagem(c))}>
-                  {copiado === `${c.id}-m` ? 'Mensagem copiada' : 'Copiar mensagem'}
+                  {copiado === `${c.id}-m` ? 'Mensagem copiada' : c.linkConvite ? 'Copiar convite' : 'Copiar mensagem'}
                 </button>
                 {c.proximoPagamento && (
                   <button
@@ -192,19 +229,19 @@ export default function ContasAssinatura({
 }
 
 function Formulario({
-c,
-colaboradores,
-servicos,
-ocupado,
-onSalvar,
-onCancelar,
+  c,
+  colaboradores,
+  servicos,
+  ocupado,
+  onSalvar,
+  onCancelar,
 }: {
-c?: Conta;
-colaboradores: { id: string; nome: string }[];
-servicos: string[];
-ocupado: boolean;
-onSalvar: (fd: FormData) => void;
-onCancelar: () => void;
+  c?: Conta;
+  colaboradores: { id: string; nome: string }[];
+  servicos: string[];
+  ocupado: boolean;
+  onSalvar: (fd: FormData) => void;
+  onCancelar: () => void;
 }) {
   const marcados = new Set(c?.membros.map((m) => m.id));
   return (
@@ -233,7 +270,23 @@ onCancelar: () => void;
           <label className="form-label">Próximo pagamento</label>
           <input name="proximoPagamento" type="date" className="form-input" defaultValue={c?.proximoPagamento ?? ''} />
         </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Valor</label>
+          <input name="valor" className="form-input" inputMode="decimal" defaultValue={dinheiroParaCampo(c?.valorCentavos)} placeholder="40,90" />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Telefone</label>
+          <input name="telefone" className="form-input" defaultValue={c?.telefone ?? ''} />
+        </div>
         <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
+          <label className="form-label">Link de convite (Spotify Família)</label>
+          <input name="linkConvite" className="form-input" defaultValue={c?.linkConvite ?? ''} placeholder="https://www.spotify.com/br-pt/family/join/invite/…" />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Endereço do convite</label>
+          <input name="endereco" className="form-input" defaultValue={c?.endereco ?? ''} />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 3' }}>
           <label className="form-label">Observação</label>
           <input name="observacao" className="form-input" defaultValue={c?.observacao ?? ''} />
         </div>
