@@ -42,10 +42,15 @@ const GRUPOS: { titulo?: string; itens: { href: string; rotulo: string; icone: s
     itens: [
       { href: '/colaboradores', rotulo: 'Colaboradores', icone: 'pessoas' },
       { href: '/aniversarios', rotulo: 'Aniversariantes', icone: 'bolo' },
-      { href: '/horarios', rotulo: 'Horários', icone: 'relogio' },
     ],
   },
-  { titulo: 'Jornada', itens: [{ href: '/horas', rotulo: 'Banco de horas', icone: 'ampulheta' }] },
+  {
+    titulo: 'Jornada',
+    itens: [
+      { href: '/horarios', rotulo: 'Horários', icone: 'relogio' },
+      { href: '/horas', rotulo: 'Banco de horas', icone: 'ampulheta' },
+    ],
+  },
   {
     titulo: 'Remuneração',
     itens: [
