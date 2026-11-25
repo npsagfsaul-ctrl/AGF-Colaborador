@@ -15,7 +15,7 @@ export default async function MetasPage({ searchParams }: { searchParams: Promis
       include: { colaborador: { select: { nome: true, setor: true } } },
       orderBy: { createdAt: 'asc' },
     }),
-    prisma.colaborador.findMany({ where: { ativo: true }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
+    prisma.colaborador.findMany({ where: { ativo: true, foraDosProcessos: false }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
     prisma.premio.findMany({ select: { servico: true }, distinct: ['servico'] }),
   ]);
 

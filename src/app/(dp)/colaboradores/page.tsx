@@ -50,7 +50,7 @@ export default async function ColaboradoresPage() {
                               </span>
                             </Link>
                           </td>
-                          <td className="text-muted dp-so-largo">{c.cargo ?? '—'}</td>
+                          <td className="text-muted dp-so-largo">{c.cargo ?? '—'}{c.foraDosProcessos && ' · só aniversário'}</td>
                           <td>{valida(c.nascimento) ? dataBR(c.nascimento).slice(0, 5) : <span className="text-muted">—</span>}</td>
                           <td>
                             {aso.situacao === 'sem-registro' ? (

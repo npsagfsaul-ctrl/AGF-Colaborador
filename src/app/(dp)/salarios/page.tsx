@@ -7,7 +7,7 @@ import BaixarExcel from '@/components/BaixarExcel';
 export default async function SalariosPage() {
   const hoje = hojeISO();
   const colaboradores = await prisma.colaborador.findMany({
-    where: { ativo: true },
+    where: { ativo: true, foraDosProcessos: false },
     include: { salarios: { orderBy: [{ desde: 'desc' }, { createdAt: 'desc' }] } },
     orderBy: { nome: 'asc' },
   });

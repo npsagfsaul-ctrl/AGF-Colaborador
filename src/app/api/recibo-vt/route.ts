@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
   const [todos, salvo] = await Promise.all([
     prisma.colaborador.findMany({
-      where: { ativo: true, beneficios: { some: { tipo: 'vt' } } },
+      where: { ativo: true, foraDosProcessos: false, beneficios: { some: { tipo: 'vt' } } },
       include: { beneficios: { where: { tipo: 'vt' } }, recargas: { where: { tipo: 'vt', competencia: comp } } },
       orderBy: { nome: 'asc' },
     }),

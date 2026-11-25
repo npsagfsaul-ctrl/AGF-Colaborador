@@ -10,10 +10,15 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julh
 export default async function AniversariosPage() {
   const hoje = hojeISO();
   const mesHoje = Number(hoje.slice(5, 7));
-  const colaboradores = await prisma.colaborador.findMany({
-    where: { ativo: true },
-    select: { id: true, nome: true, setor: true, nascimento: true },
-  });
+  // Todo mundo: inclusive quem está fora dos processos do DP e os freelas.
+  const [gente, freelas] = await Promise.all([
+    prisma.colaborador.findMany({ where: { ativo: true }, select: { id: true, nome: true, setor: true, nascimento: true } }),
+    prisma.freelancer.findMany({ where: { ativo: true }, select: { id: true, nome: true, funcao: true, nascimento: true } }),
+  ]);
+  const colaboradores = [
+    ...gente.map((c) => ({ ...c, href: `/colaboradores/${c.id}` })),
+    ...freelas.map((f) => ({ id: f.id, nome: f.nome, setor: f.funcao ? `freela · ${f.funcao}` : 'freela', nascimento: f.nascimento, href: `/freelas/${f.id}` })),
+  ];
   const comData = colaboradores.filter((c) => valida(c.nascimento));
   const semData = colaboradores.length - comData.length;
 
@@ -53,7 +58,7 @@ export default async function AniversariosPage() {
                     <span className="dp-pessoa">
                       <Avatar nome={p.nome} tamanho={28} />
                       <span>
-                        <Link href={`/colaboradores/${p.id}`}>{p.nome}</Link>
+                        <Link href={p.href}>{p.nome}</Link>
                         {p.setor && <span className="text-muted" style={{ fontSize: '0.75rem' }}> · {p.setor}</span>}
                       </span>
                     </span>

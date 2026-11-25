@@ -41,7 +41,7 @@ const d = (s: string | null | undefined) => (valida(s) ? s : null);
 const r = (c: number | null | undefined) => (c === null || c === undefined ? null : c / 100);
 
 async function ativos() {
-  return prisma.colaborador.findMany({ where: { ativo: true }, orderBy: { nome: 'asc' } });
+  return prisma.colaborador.findMany({ where: { ativo: true, foraDosProcessos: false }, orderBy: { nome: 'asc' } });
 }
 
 /* ─── Cada tela ─── */
@@ -76,7 +76,7 @@ async function colaboradores(): Promise<Aba[]> {
 
 async function horas(): Promise<Aba[]> {
   const lista = await prisma.colaborador.findMany({
-    where: { ativo: true },
+    where: { ativo: true, foraDosProcessos: false },
     include: { lancamentos: { orderBy: { data: 'asc' } } },
     orderBy: { nome: 'asc' },
   });
@@ -118,7 +118,15 @@ async function horarios(): Promise<Aba[]> {
 }
 
 async function aniversarios(): Promise<Aba[]> {
-  const lista = (await ativos()).filter((c) => valida(c.nascimento));
+  // Aniversário é de todo mundo: quem está fora dos processos e os freelas também.
+  const [gente, freelas] = await Promise.all([
+    prisma.colaborador.findMany({ where: { ativo: true }, select: { nome: true, setor: true, nascimento: true } }),
+    prisma.freelancer.findMany({ where: { ativo: true }, select: { nome: true, funcao: true, nascimento: true } }),
+  ]);
+  const lista = [
+    ...gente,
+    ...freelas.map((f) => ({ nome: f.nome, setor: `Freela${f.funcao ? ` · ${f.funcao}` : ''}`, nascimento: f.nascimento })),
+  ].filter((c) => valida(c.nascimento));
   lista.sort((a, b) => a.nascimento!.slice(5).localeCompare(b.nascimento!.slice(5)));
   const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   return [{
@@ -131,7 +139,7 @@ async function aniversarios(): Promise<Aba[]> {
 async function salarios(): Promise<Aba[]> {
   const hoje = hojeISO();
   const lista = await prisma.colaborador.findMany({
-    where: { ativo: true },
+    where: { ativo: true, foraDosProcessos: false },
     include: { salarios: { orderBy: [{ desde: 'desc' }, { createdAt: 'desc' }] } },
     orderBy: { nome: 'asc' },
   });
@@ -155,7 +163,7 @@ async function salarios(): Promise<Aba[]> {
 async function holerites(mes?: string): Promise<Aba[]> {
   if (mes) {
     const lista = await prisma.colaborador.findMany({
-      where: { ativo: true },
+      where: { ativo: true, foraDosProcessos: false },
       include: { holerites: { where: { competencia: mes } } },
       orderBy: { nome: 'asc' },
     });
@@ -187,7 +195,7 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
   if (mes) {
     const [lista, salvo] = await Promise.all([
       prisma.colaborador.findMany({
-        where: { ativo: true, beneficios: { some: { tipo } } },
+        where: { ativo: true, foraDosProcessos: false, beneficios: { some: { tipo } } },
         include: { beneficios: { where: { tipo } }, recargas: { where: { tipo, competencia: mes } } },
         orderBy: { nome: 'asc' },
       }),

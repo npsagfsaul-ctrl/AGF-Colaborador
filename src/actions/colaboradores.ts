@@ -62,6 +62,7 @@ export async function atualizarColaborador(id: string, fd: FormData): Promise<Re
         asoUltimo: dataOuNull(fd, 'asoUltimo', 'Último ASO'),
         asoMeses: Number.isFinite(meses) && meses > 0 ? Math.round(meses) : 12,
         observacao: texto(fd, 'observacao'),
+        foraDosProcessos: fd.get('foraDosProcessos') === 'on',
       },
     });
   });

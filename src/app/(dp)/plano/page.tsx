@@ -9,7 +9,7 @@ export default async function PlanoPage() {
       include: { colaborador: { select: { nome: true, setor: true } } },
       orderBy: [{ createdAt: 'asc' }],
     }),
-    prisma.colaborador.findMany({ where: { ativo: true }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
+    prisma.colaborador.findMany({ where: { ativo: true, foraDosProcessos: false }, select: { id: true, nome: true }, orderBy: { nome: 'asc' } }),
   ]);
   const planos = [...new Set(vidas.map((v) => v.plano).filter(Boolean))] as string[];
 

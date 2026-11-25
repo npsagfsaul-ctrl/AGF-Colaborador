@@ -135,6 +135,7 @@ function dadosFreela(fd: FormData) {
     pix: texto(fd, 'pix'),
     diariaCentavos: dinheiro(fd, 'diaria', 'Diária'),
     observacao: texto(fd, 'observacao'),
+    nascimento: data(fd, 'nascimento', 'Nascimento'),
   };
 }
 

@@ -26,6 +26,7 @@ export interface Ficha {
   asoMeses: number;
   observacao: string | null;
   controlaHoras: boolean;
+  foraDosProcessos: boolean;
   saldoMinutos: number;
   ferias: { id: string; inicio: string; fim: string; observacao: string | null }[];
 }
@@ -144,6 +145,11 @@ export default function FichaColaborador({
           <label className="form-label" htmlFor="observacao">Observação</label>
           <textarea id="observacao" name="observacao" className="form-textarea" rows={2} defaultValue={c.observacao ?? ''} />
         </div>
+
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, fontSize: '0.875rem', cursor: 'pointer' }}>
+          <input type="checkbox" name="foraDosProcessos" defaultChecked={c.foraDosProcessos} style={{ width: 16, height: 16 }} />
+          Não entra nos processos do DP (só aparece em Aniversariantes)
+        </label>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button type="submit" className="btn btn-primary" disabled={ocupado}>Salvar</button>

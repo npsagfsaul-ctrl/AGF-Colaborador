@@ -48,6 +48,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
             <div className="dp-etiquetas">
               {c.setor && <span className="dp-etiqueta">{c.setor}</span>}
               {c.cargo && <span className="dp-etiqueta">{c.cargo}</span>}
+              {c.foraDosProcessos && <span className="dp-etiqueta">só aniversário</span>}
               {!c.ativo && <span className="dp-etiqueta perigo">desligado</span>}
               {aso.situacao === 'vencido' && <span className="dp-etiqueta perigo">ASO vencido</span>}
             </div>
@@ -86,6 +87,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           asoMeses: c.asoMeses,
           observacao: c.observacao,
           controlaHoras: c.controlaHoras,
+          foraDosProcessos: c.foraDosProcessos,
           saldoMinutos: saldoDe(c.saldoInicialMinutos, c.lancamentos, c.saldoInicialEm),
           ferias: c.ferias.map((f) => ({ id: f.id, inicio: f.inicio, fim: f.fim, observacao: f.observacao })),
         }}

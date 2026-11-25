@@ -7,6 +7,7 @@ export interface DadosFreela {
   pix: string | null;
   diariaCentavos: number | null;
   observacao: string | null;
+  nascimento: string | null;
 }
 
 export default function CamposFreela({ funcoes, f }: { funcoes: string[]; f?: DadosFreela }) {
@@ -33,6 +34,10 @@ export default function CamposFreela({ funcoes, f }: { funcoes: string[]; f?: Da
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label">PIX</label>
         <input name="pix" className="form-input" defaultValue={f?.pix ?? ''} />
+      </div>
+      <div className="form-group" style={{ marginBottom: 0 }}>
+        <label className="form-label">Nascimento</label>
+        <input name="nascimento" type="date" className="form-input" defaultValue={f?.nascimento ?? ''} />
       </div>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label className="form-label">Observação</label>

@@ -26,7 +26,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
 
   const [todos, mesSalvo] = await Promise.all([
     prisma.colaborador.findMany({
-      where: { ativo: true },
+      where: { ativo: true, foraDosProcessos: false },
       include: {
         beneficios: { where: { tipo } },
         recargas: { where: { tipo, competencia } },

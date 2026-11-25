@@ -42,7 +42,7 @@ export default async function PainelPage() {
   const hoje = hojeISO();
   const competencia = competenciaAtual(hoje);
 
-  const colaboradores = await prisma.colaborador.findMany({
+  const todosAtivos = await prisma.colaborador.findMany({
     where: { ativo: true },
     include: {
       ferias: { select: { inicio: true, fim: true } },
@@ -52,7 +52,11 @@ export default async function PainelPage() {
     orderBy: { nome: 'asc' },
   });
 
-  if (colaboradores.length === 0) {
+  // Fora dos processos (ex.: a dona) só entra no bloco de aniversários.
+  const colaboradores = todosAtivos.filter((c) => !c.foraDosProcessos);
+  const freelasNiver = await prisma.freelancer.findMany({ where: { ativo: true }, select: { id: true, nome: true, nascimento: true } });
+
+  if (todosAtivos.length === 0) {
     return (
       <div className="card">
         <p style={{ margin: 0 }}>
@@ -63,7 +67,10 @@ export default async function PainelPage() {
     );
   }
 
-  const aniversarios = colaboradores
+  const aniversarios = [
+    ...todosAtivos.map((c) => ({ id: c.id, nome: c.nome, nascimento: c.nascimento, href: `/colaboradores/${c.id}` })),
+    ...freelasNiver.map((f) => ({ id: f.id, nome: f.nome, nascimento: f.nascimento, href: `/freelas/${f.id}` })),
+  ]
     .filter((c) => valida(c.nascimento))
     .map((c) => ({ c, ...proximoAniversario(c.nascimento!, hoje) }))
     .filter((a) => a.dias <= 30)
@@ -150,7 +157,7 @@ export default async function PainelPage() {
             <ul className="dp-lista">
               {aniversarios.map((a) => (
                 <li key={a.c.id}>
-                  <Link href={`/colaboradores/${a.c.id}`}>{a.c.nome}</Link>
+                  <Link href={a.c.href}>{a.c.nome}</Link>
                   <span style={a.dias === 0 ? { fontWeight: 700, color: 'var(--primary)' } : { color: 'var(--text-muted)' }}>
                     {dataBR(a.data).slice(0, 5)} · {quando(a.dias)}
                   </span>

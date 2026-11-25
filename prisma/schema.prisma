@@ -30,6 +30,10 @@ model Colaborador {
   /// no resto (férias, ASO, holerite).
   controlaHoras Boolean @default(true)
 
+  /// Fica fora de todos os processos do DP (VA, VT, salário, holerite, horas,
+  /// horários, ASO, férias) e só aparece em Aniversariantes. Ex.: a dona.
+  foraDosProcessos Boolean @default(false)
+
   /// Jornada contratada: observação curta + os horários em dois blocos
   /// (segunda a sexta e sábado). Só informativo — quem calcula hora
   /// trabalhada é o sistema de ponto.
@@ -225,6 +229,8 @@ model Freelancer {
   pix      String?
   diariaCentavos Int?
   observacao String?
+  /// Para lembrar do aniversário dos freelas também.
+  nascimento String?
   ativo  Boolean @default(true)
 
   diarias Diaria[]

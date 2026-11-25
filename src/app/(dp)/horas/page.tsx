@@ -7,7 +7,7 @@ import BaixarExcel from '@/components/BaixarExcel';
 
 export default async function HorasPage() {
   const todos = await prisma.colaborador.findMany({
-    where: { ativo: true },
+    where: { ativo: true, foraDosProcessos: false },
     include: { lancamentos: { select: { minutos: true, data: true } } },
     orderBy: { nome: 'asc' },
   });

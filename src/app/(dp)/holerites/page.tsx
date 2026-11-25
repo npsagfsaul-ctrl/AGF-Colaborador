@@ -10,7 +10,7 @@ export default async function HoleritesPage({ searchParams }: { searchParams: Pr
   const competencia = mes && opcoes.includes(mes) ? mes : competenciaAtual(hoje);
 
   const colaboradores = await prisma.colaborador.findMany({
-    where: { ativo: true },
+    where: { ativo: true, foraDosProcessos: false },
     include: { holerites: { where: { competencia }, select: { entregueEm: true } } },
     orderBy: { nome: 'asc' },
   });
