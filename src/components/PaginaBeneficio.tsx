@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { porNome } from '@/lib/ordem';
 import { competenciaValida, diasEntre, hojeISO, mesDe, nomeCompetencia, somaMes } from '@/lib/datas';
-import { descontoFolhaVA, diasDoMes, diasPadrao, diasQueTrabalha, diasVA, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
+import { descontoFolhaVA, descontoFolhaVT, diasDoMes, diasPadrao, diasQueTrabalha, diasVA, foraDoBeneficio, NOME_BENEFICIO, salarioNoMes, valorDaRecarga, type TipoBeneficio } from '@/lib/beneficio';
 import BeneficioMes from './BeneficioMes';
 import QuemRecebe from './QuemRecebe';
 import BaixarExcel from './BaixarExcel';
@@ -31,6 +31,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
         beneficios: { where: { tipo } },
         recargas: { where: { tipo, competencia } },
         ferias: { select: { inicio: true, fim: true } },
+        salarios: { select: { valorCentavos: true, desde: true } },
       },
       orderBy: { nome: 'asc' },
     }),
@@ -63,7 +64,7 @@ export default async function PaginaBeneficio({ tipo, mes }: { tipo: TipoBenefic
         sabados: r?.sabados ?? null,
         descontar: r?.descontar ?? null,
         diasCalc: dias,
-        descontoFolha: tipo === 'va' ? descontoFolhaVA(aCarregar) : null,
+        descontoFolha: tipo === 'va' ? descontoFolhaVA(aCarregar) : descontoFolhaVT(salarioNoMes(c.salarios, competencia), aCarregar),
         motivo: r?.motivo ?? '',
         carregadoEm: r?.carregadoEm ?? null,
         // Carregado: vale o que foi gravado na hora. Senão, a conta de agora.

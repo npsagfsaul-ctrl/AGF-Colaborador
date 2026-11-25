@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { COOKIE, tokenEsperado } from '@/lib/sessao';
 import { prisma } from '@/lib/prisma';
 import { competenciaValida, hojeISO, mesDe, nomeCompetencia } from '@/lib/datas';
-import { diasDoMes, diasPadrao, diasQueTrabalha, foraDoBeneficio, valorDaRecarga } from '@/lib/beneficio';
+import { descontoFolhaVT, diasDoMes, diasPadrao, diasQueTrabalha, foraDoBeneficio, salarioNoMes, valorDaRecarga } from '@/lib/beneficio';
 import { dinheiroPorExtenso } from '@/lib/extenso';
 import { LOGO_CORREIOS_JPG } from '@/lib/logoCorreios';
 import { diaDaSemana, feriadosDoAno } from '@/lib/feriados';
@@ -34,7 +34,11 @@ export async function GET(req: Request) {
   const [todos, salvo] = await Promise.all([
     prisma.colaborador.findMany({
       where: { ativo: true, foraDosProcessos: false, beneficios: { some: { tipo: 'vt' } } },
-      include: { beneficios: { where: { tipo: 'vt' } }, recargas: { where: { tipo: 'vt', competencia: comp } } },
+      include: {
+        beneficios: { where: { tipo: 'vt' } },
+        recargas: { where: { tipo: 'vt', competencia: comp } },
+        salarios: { select: { valorCentavos: true, desde: true } },
+      },
       orderBy: { nome: 'asc' },
     }),
     prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo: 'vt', competencia: comp } } }),
@@ -169,17 +173,27 @@ export async function GET(req: Request) {
       total = { formula: 'IF(H6>=H4,H7,ROUND(H7*H6/H4,2))', result: valor / 100 };
       conta(8, 'Total (proporcional aos dias pagos)', total, { numFmt: REAL, font: { bold: true } });
     }
+    // Desconto em folha: 6% do salário-base, sem passar do VT do mês.
+    const linhaTotal = b.porDia ? 10 : 8;
+    const salario = salarioNoMes(c.salarios, comp);
+    const folha = descontoFolhaVT(salario, valor);
+    if (salario === null) {
+      conta(linhaTotal + 1, 'Desconto em folha (6%)', 'sem salário cadastrado');
+    } else {
+      conta(linhaTotal + 1, 'Salário-base', salario / 100, { numFmt: REAL });
+      conta(linhaTotal + 2, 'Desconto em folha (6%, até o total)', { formula: `ROUND(MIN(H${linhaTotal + 1}*6%,H${linhaTotal}),2)`, result: (folha ?? 0) / 100 }, { numFmt: REAL, font: { bold: true } });
+    }
     if (feriados.length) {
-      junta('G12:H12');
-      poe('G12', `Feriados fora da conta: ${feriados.join(', ')}`, { font: { italic: true, size: 9 }, alignment: { wrapText: true, vertical: 'top' } });
-      ws.getRow(12).height = 30;
+      junta('G14:H14');
+      poe('G14', `Feriados fora da conta: ${feriados.join(', ')}`, { font: { italic: true, size: 9 }, alignment: { wrapText: true, vertical: 'top' } });
+      ws.getRow(14).height = 30;
     }
     // O valor do recibo puxa o total da conta — a não ser que o valor já
     // carregado seja outro (passagem mudou depois): aí vale o que foi pago.
     const conferido = valorDaRecarga(b, dias, padrao) === valor;
     if (conferido) ws.getCell('B3').value = { formula: b.porDia ? 'H10' : 'H8', result: valor / 100 };
 
-    ws.pageSetup.printArea = 'A1:H13';
+    ws.pageSetup.printArea = 'A1:H14';
   }
 
   const buffer = await wb.xlsx.writeBuffer();

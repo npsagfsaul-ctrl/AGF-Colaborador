@@ -124,9 +124,9 @@ export default function BeneficioMes({
         <div style={{ paddingBottom: 8 }}>
           <span className="text-muted" style={{ fontSize: '0.8125rem' }}>Total </span>
           <span className="dp-num">{formatarDinheiro(total)}</span>
-          {va && (
+          {linhas.length > 0 && (
             <>
-              <span className="text-muted" style={{ fontSize: '0.8125rem', marginLeft: 12 }}>Desc. folha 20% </span>
+              <span className="text-muted" style={{ fontSize: '0.8125rem', marginLeft: 12 }}>Desc. folha {va ? '20%' : '6%'} </span>
               <span className="dp-num">{formatarDinheiro(totalFolha)}</span>
             </>
           )}
@@ -179,7 +179,7 @@ export default function BeneficioMes({
                   </>
                 )}
                 <th style={{ textAlign: 'right' }}>Valor</th>
-                {va && <th style={{ textAlign: 'right' }}>Desc. folha</th>}
+                <th style={{ textAlign: 'right' }} title={va ? '20% do valor do mês' : '6% do salário, até o valor do VT'}>Desc. folha</th>
               </tr>
             </thead>
             <tbody>
@@ -379,6 +379,13 @@ function LinhaRecarga({
         <div className="text-muted" style={{ fontSize: '0.7rem' }}>
           {travado ? `carregado ${dataBR(l.carregadoEm).slice(0, 5)}` : rotuloValor(l, formatarDinheiro(l.valorCentavos))}
         </div>
+      </td>
+      <td style={{ textAlign: 'right' }}>
+        {l.descontoFolha === null ? (
+          <span className="text-muted" style={{ fontSize: '0.75rem' }} title="Cadastre o salário na tela Salários">sem salário</span>
+        ) : (
+          <span className="dp-num">{formatarDinheiro(l.descontoFolha)}</span>
+        )}
       </td>
     </tr>
   );

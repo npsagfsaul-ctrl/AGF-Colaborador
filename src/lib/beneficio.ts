@@ -94,6 +94,25 @@ export function diasVA(
   return Math.max(0, diasUteis + (r?.sabados ?? 0) * SABADO_VA - (r?.descontar ?? 0));
 }
 
+/** VT: até 6% do salário-base descontado em folha (Lei 7.418/85). */
+export const DESCONTO_FOLHA_VT = 0.06;
+
+/**
+ * Desconto do VT em folha: 6% do salário-base, mas nunca mais que o próprio
+ * VT do mês. Sem salário cadastrado, não dá para saber: null.
+ */
+export function descontoFolhaVT(salarioCentavos: number | null, valorVTCentavos: number): number | null {
+  if (salarioCentavos === null) return null;
+  return Math.min(Math.round(salarioCentavos * DESCONTO_FOLHA_VT), valorVTCentavos);
+}
+
+/** O salário em vigor no mês: o último reajuste que começou até o fim do mês. */
+export function salarioNoMes(salarios: { valorCentavos: number; desde: string }[], comp: string): number | null {
+  const fim = `${comp}-31`;
+  const valendo = salarios.filter((s) => s.desde <= fim).sort((a, b) => b.desde.localeCompare(a.desde))[0];
+  return valendo?.valorCentavos ?? null;
+}
+
 export function descontoFolhaVA(valorCentavos: number): number {
   return Math.round(valorCentavos * DESCONTO_FOLHA_VA);
 }

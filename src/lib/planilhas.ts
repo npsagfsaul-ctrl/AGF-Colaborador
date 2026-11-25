@@ -11,7 +11,7 @@ import {
 } from './datas';
 import { formatarHoras, jaEstaNoRelatorio, saldoDe } from './horas';
 import { lerJornada, minutosDaSemana, type Periodo } from './jornada';
-import { descontoFolhaVA, diasDoMes, diasPadrao, diasQueTrabalha, diasVA, foraDoBeneficio, NOME_BENEFICIO, valorDaRecarga, type TipoBeneficio } from './beneficio';
+import { descontoFolhaVA, descontoFolhaVT, diasDoMes, diasPadrao, diasQueTrabalha, diasVA, foraDoBeneficio, NOME_BENEFICIO, salarioNoMes, valorDaRecarga, type TipoBeneficio } from './beneficio';
 import { NOMES_MES, ocorrenciasNoMes, rotuloFrequencia } from './agenda';
 import { feriadosDoAno } from './feriados';
 import { itensDaAgenda } from './agendaDados';
@@ -202,7 +202,11 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     const [lista, salvo] = await Promise.all([
       prisma.colaborador.findMany({
         where: { ativo: true, foraDosProcessos: false, beneficios: { some: { tipo } } },
-        include: { beneficios: { where: { tipo } }, recargas: { where: { tipo, competencia: mes } } },
+        include: {
+          beneficios: { where: { tipo } },
+          recargas: { where: { tipo, competencia: mes } },
+          salarios: { select: { valorCentavos: true, desde: true } },
+        },
         orderBy: { nome: 'asc' },
       }),
       prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia: mes } } }),
@@ -266,17 +270,70 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
         notas,
       }];
     }
+    // VT — colunas: A nome, B setor, C seg a sex, D sábados, E dias do mês, F descontar,
+    // G dias pagos, H passagens/dia, I passagens, J valor da passagem, K valor do mês,
+    // L salário, M desc. folha 6%, N motivo, O carregado em. E, G, I, K, M e o total são fórmula.
+    const PRIMEIRA = 3;
+    let somaValor = 0;
+    let somaFolha = 0;
+    const pessoas = lista.filter((c) => !foraDoBeneficio(c));
+    const linhas: Celula[][] = pessoas.map((c, i) => {
+      const n = PRIMEIRA + i;
+      const b = c.beneficios[0];
+      const rc = c.recargas[0];
+      const quando = diasQueTrabalha(c.jornadaDetalhe);
+      const semana = quando.semana ? uteis : 0;
+      const sabados = quando.sabado ? doMes.sabados : 0;
+      const padrao = diasPadrao(quando, uteis, doMes.sabados);
+      const dias = rc?.dias ?? padrao;
+      const valor = rc?.carregadoEm && rc.valorCentavos !== null ? rc.valorCentavos : valorDaRecarga(b, dias, padrao);
+      const salario = salarioNoMes(c.salarios, mes);
+      const folha = descontoFolhaVT(salario, valor);
+      somaValor += valor;
+      somaFolha += folha ?? 0;
+      const passagens = dias * b.vezesPorDia;
+      // Já carregado com outro preço (a passagem subiu depois): mostra o preço daquela época.
+      const unit = b.porDia && passagens > 0 && rc?.carregadoEm && rc.valorCentavos !== null ? Math.round(rc.valorCentavos / passagens) : b.valorCentavos;
+      return [
+        c.nome, c.setor, semana, sabados,
+        { formula: `C${n}+D${n}`, valor: padrao },
+        padrao - dias,
+        { formula: `E${n}-F${n}`, valor: dias },
+        b.porDia ? b.vezesPorDia : null,
+        b.porDia ? { formula: `G${n}*H${n}`, valor: passagens } : null,
+        r(unit),
+        b.porDia
+          ? { formula: `ROUND(I${n}*J${n},2)`, valor: valor / 100 }
+          : { formula: `IF(G${n}>=E${n},J${n},ROUND(J${n}*G${n}/E${n},2))`, valor: valor / 100 },
+        r(salario),
+        folha === null ? null : { formula: `ROUND(MIN(L${n}*6%,K${n}),2)`, valor: folha / 100 },
+        rc?.motivo ?? null,
+        d(rc?.carregadoEm),
+      ];
+    });
+    const ultima = PRIMEIRA + linhas.length - 1;
+    linhas.push(['Total', null, null, null, null, null, null, null, null, null,
+      { formula: `SUM(K${PRIMEIRA}:K${ultima})`, valor: somaValor / 100 }, null,
+      { formula: `SUM(M${PRIMEIRA}:M${ultima})`, valor: somaFolha / 100 }, null, null]);
+    const [anoM, mesM] = mes.split('-').map(Number);
+    const feriados = feriadosDoAno(anoM)
+      .filter((f) => f.data.startsWith(mes) && !f.facultativo)
+      .filter((f) => { const s = new Date(`${f.data}T12:00:00Z`).getUTCDay(); return s >= 1 && s <= 6; })
+      .map((f) => `${f.data.slice(8)}/${String(mesM).padStart(2, '0')} ${f.nome}`);
     return [{
-      nome,
-      colunas: [T('Nome', 30), T('Setor'), R('Valor'), T('Por', 12), N('Dias do mês'), N('Dias'), T('Motivo', 28), R('Valor do mês'), D('Carregado em')],
-      linhas: lista.filter((c) => !foraDoBeneficio(c)).map((c) => {
-        const b = c.beneficios[0];
-        const rc = c.recargas[0];
-        const padrao = diasPadrao(diasQueTrabalha(c.jornadaDetalhe), uteis, doMes.sabados);
-        const dias = rc?.dias ?? padrao;
-        const valor = rc?.carregadoEm && rc.valorCentavos !== null ? rc.valorCentavos : valorDaRecarga(b, dias, padrao);
-        return [c.nome, c.setor, r(b.valorCentavos), por(b), padrao, dias, rc?.motivo ?? null, r(valor), d(rc?.carregadoEm)];
-      }),
+      nome: `VT - ${nomeCompetencia(mes)}`,
+      titulo: `Vale Transporte — ${nomeCompetencia(mes)} — ${uteis} dias úteis`,
+      colunas: [T('Nome completo', 34), T('Setor'), N('Seg a sex'), N('Sábados'), N('Dias do mês'), N('Descontar'), N('Dias pagos'), N('Passagens por dia'), N('Passagens'), R('Valor da passagem'), R('Valor do mês'), R('Salário'), R('Desc. folha 6%'), T('Motivo', 30), D('Carregado em')],
+      linhas,
+      notas: [
+        'Como é calculado',
+        `Seg a sex: dias de segunda a sexta do mês, sem os feriados nacionais = ${uteis} dias${feriados.length ? ` (fora: ${feriados.join(', ')})` : ''}.`,
+        `Sábados: os ${doMes.sabados} sábados do mês, só para quem tem horário de sábado na tela Horários.`,
+        'Descontar: dias sem ir ao trabalho (falta, férias, atestado).',
+        'Dias pagos = Dias do mês − Descontar.   Passagens = Dias pagos × Passagens por dia (ida e volta = 2).',
+        'Valor do mês = Passagens × Valor da passagem.',
+        'Desc. folha = 6% do salário-base, sem passar do Valor do mês (Lei 7.418/85). Em branco = salário não cadastrado.',
+      ],
     }];
   }
   const [quem, recargas] = await Promise.all([
