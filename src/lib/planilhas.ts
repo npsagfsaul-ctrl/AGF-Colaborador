@@ -26,9 +26,14 @@ import { itensDaAgenda } from './agendaDados';
  */
 export type TipoColuna = 'texto' | 'data' | 'dinheiro' | 'numero';
 export interface Coluna { titulo: string; tipo?: TipoColuna; largura?: number }
-export type Celula = string | number | null;
-/** `titulo` é a linha de cima da planilha; sem ele, vale o nome da aba. */
-export interface Aba { nome: string; titulo?: string; colunas: Coluna[]; linhas: Celula[][] }
+/** Fórmula do Excel com o resultado já calculado (o Excel mostra o resultado e refaz a conta se mudarem os números). */
+export interface Formula { formula: string; valor: number }
+export type Celula = string | number | null | Formula;
+/**
+ * `titulo` é a linha de cima da planilha; sem ele, vale o nome da aba.
+ * `notas` vão embaixo da tabela, uma por linha — a primeira sai em negrito.
+ */
+export interface Aba { nome: string; titulo?: string; colunas: Coluna[]; linhas: Celula[][]; notas?: string[] }
 export interface Planilha { arquivo: string; abas: Aba[] }
 
 const T = (titulo: string, largura = 18): Coluna => ({ titulo, largura });
@@ -207,22 +212,58 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
     if (tipo === 'va') {
       // No jeito da planilha do DP: dias úteis + meio dia por sábado − descontos.
       const pessoas = lista.filter((c) => !foraDoBeneficio(c));
-      const linhas = pessoas.map((c) => {
+      // Colunas: A nome, B setor, C dias úteis, D sábados, E descontar, F dias do mês,
+      // G descrição, H valor unit., I valor do mês, J desc. folha, K carregado em.
+      // F, I, J e o total vão como fórmula: quem abre vê a conta clicando na célula.
+      const PRIMEIRA = 3; // linha 1 = título, linha 2 = cabeçalho
+      let somaValor = 0;
+      let somaFolha = 0;
+      const linhas: Celula[][] = pessoas.map((c, i) => {
+        const n = PRIMEIRA + i;
         const b = c.beneficios[0];
         const rc = c.recargas[0];
         const dias = diasVA(uteis, rc);
         const valor = rc?.carregadoEm && rc.valorCentavos !== null ? rc.valorCentavos : valorDaRecarga(b, dias, uteis);
         // Já carregado: o valor do dia daquela época (antes de um dissídio, por exemplo).
         const unit = rc?.carregadoEm && rc.valorCentavos !== null && b.porDia && dias > 0 ? Math.round(rc.valorCentavos / dias) : b.valorCentavos;
-        return [c.nome, c.setor, uteis, rc?.sabados ?? null, rc?.descontar ?? null, dias, rc?.motivo ?? null, r(unit), r(valor), r(descontoFolhaVA(valor)), d(rc?.carregadoEm)];
+        const folha = descontoFolhaVA(valor);
+        somaValor += valor;
+        somaFolha += folha;
+        const porDia = b.porDia;
+        return [
+          c.nome, c.setor, uteis, rc?.sabados ?? null, rc?.descontar ?? null,
+          { formula: `C${n}+D${n}*0.5-E${n}`, valor: dias },
+          rc?.motivo ?? null,
+          r(unit),
+          porDia ? { formula: `ROUND(F${n}*H${n},2)`, valor: valor / 100 } : r(valor),
+          { formula: `ROUND(I${n}*20%,2)`, valor: folha / 100 },
+          d(rc?.carregadoEm),
+        ];
       });
-      const soma = (i: number) => linhas.reduce((s, l) => s + ((l[i] as number | null) ?? 0), 0);
-      linhas.push(['Total', null, null, null, null, null, null, null, soma(8), soma(9), null]);
+      const ultima = PRIMEIRA + linhas.length - 1;
+      linhas.push(['Total', null, null, null, null, null, null, null,
+        { formula: `SUM(I${PRIMEIRA}:I${ultima})`, valor: somaValor / 100 },
+        { formula: `SUM(J${PRIMEIRA}:J${ultima})`, valor: somaFolha / 100 },
+        null]);
+      const [anoM, mesM] = mes.split('-').map(Number);
+      const feriados = feriadosDoAno(anoM)
+        .filter((f) => f.data.startsWith(mes) && !f.facultativo)
+        .filter((f) => { const s = new Date(`${f.data}T12:00:00Z`).getUTCDay(); return s >= 1 && s <= 5; })
+        .map((f) => `${f.data.slice(8)}/${String(mesM).padStart(2, '0')} ${f.nome}`);
+      const notas = [
+        'Como é calculado',
+        `Dias úteis: segunda a sexta do mês, sem os feriados nacionais = ${uteis} dias${feriados.length ? ` (fora: ${feriados.join(', ')})` : ''}.`,
+        'Sábados: cada sábado trabalhado no período anterior soma meio dia (0,5).',
+        'Descontar: falta ou atestado = 1 dia; declaração ou dia com menos de 5 horas trabalhadas = meio dia (0,5).',
+        'Dias do mês = Dias úteis + Sábados × 0,5 − Descontar.',
+        'Valor do mês = Dias do mês × Valor unit.   Desc. folha = 20% do Valor do mês.',
+      ];
       return [{
         nome: `VA - ${nomeCompetencia(mes)}`,
         titulo: `Vale Alimentação — ${nomeCompetencia(mes)} — ${uteis} dias úteis`,
         colunas: [T('Nome completo', 34), T('Setor'), N('Dias úteis'), N('Sábados (½ dia cada)'), N('Descontar'), N('Dias do mês'), T('Descrição', 40), R('Valor unit.'), R('Valor do mês'), R('Desc. folha 20%'), D('Carregado em')],
         linhas,
+        notas,
       }];
     }
     return [{

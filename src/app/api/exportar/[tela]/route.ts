@@ -71,6 +71,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
       const row = ws.addRow(
         linha.map((v, i) => {
           if (v === null || v === undefined || v === '') return null;
+          if (typeof v === 'object') return { formula: v.formula, result: v.valor };
           if (aba.colunas[i]?.tipo === 'data' && typeof v === 'string') {
             const [a, m, d] = v.split('-').map(Number);
             return new Date(Date.UTC(a, m - 1, d));
@@ -97,6 +98,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
 
     const ultimaDado = 2 + aba.linhas.filter((l) => l[0] !== 'Total').length;
     ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: Math.max(2, ultimaDado), column: n } };
+
+    // Explicação embaixo da tabela, para quem abrir sem conhecer a conta.
+    if (aba.notas?.length) {
+      ws.addRow([]);
+      aba.notas.forEach((nota, i) => {
+        const row = ws.addRow([nota]);
+        ws.mergeCells(row.number, 1, row.number, n);
+        const cel = row.getCell(1);
+        cel.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        cel.font = i === 0 ? { bold: true, color: { argb: ROXO } } : { color: { argb: 'FF444444' } };
+        if (i === 0) cel.border = { bottom: { style: 'thin', color: { argb: ROXO } } };
+      });
+    }
   }
 
   const buffer = await wb.xlsx.writeBuffer();
