@@ -27,7 +27,8 @@ import { itensDaAgenda } from './agendaDados';
 export type TipoColuna = 'texto' | 'data' | 'dinheiro' | 'numero';
 export interface Coluna { titulo: string; tipo?: TipoColuna; largura?: number }
 export type Celula = string | number | null;
-export interface Aba { nome: string; colunas: Coluna[]; linhas: Celula[][] }
+/** `titulo` é a linha de cima da planilha; sem ele, vale o nome da aba. */
+export interface Aba { nome: string; titulo?: string; colunas: Coluna[]; linhas: Celula[][] }
 export interface Planilha { arquivo: string; abas: Aba[] }
 
 const T = (titulo: string, largura = 18): Coluna => ({ titulo, largura });
@@ -219,6 +220,7 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
       linhas.push(['Total', null, null, null, null, null, null, null, soma(8), soma(9), null]);
       return [{
         nome: `VA - ${nomeCompetencia(mes)}`,
+        titulo: `Vale Alimentação — ${nomeCompetencia(mes)} — ${uteis} dias úteis`,
         colunas: [T('Nome completo', 34), T('Setor'), N('Dias úteis'), N('Sábados (½ dia cada)'), N('Descontar'), N('Dias do mês'), T('Descrição', 40), R('Valor unit.'), R('Valor do mês'), R('Desc. folha 20%'), D('Carregado em')],
         linhas,
       }];

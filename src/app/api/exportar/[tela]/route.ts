@@ -34,11 +34,41 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
     for (let i = 2; usados.has(nome); i++) nome = `${aba.nome.slice(0, 28)} ${i}`;
     usados.add(nome);
 
-    const ws = wb.addWorksheet(nome, { views: [{ state: 'frozen', ySplit: 1 }] });
-    ws.columns = aba.colunas.map((c) => ({ header: c.titulo, width: c.largura ?? 18 }));
+    // Linha 1: título da planilha. Linha 2: cabeçalho. Depois, os dados.
+    // Vai para a gerência: tem de abrir já com cara de relatório.
+    const n = aba.colunas.length;
+    const ws = wb.addWorksheet(nome, {
+      views: [{ state: 'frozen', ySplit: 2 }],
+      pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:2' },
+    });
+    ws.columns = aba.colunas.map((c) => ({ width: c.largura ?? 18 }));
+    if (n === 0) continue;
 
-    for (const linha of aba.linhas) {
-      ws.addRow(
+    const ROXO = 'FF6D4FD8';
+    const linhaFina = { style: 'thin' as const, color: { argb: 'FFD9D6E8' } };
+    const borda = { top: linhaFina, left: linhaFina, bottom: linhaFina, right: linhaFina };
+    // Nome e descrição (colunas largas de texto) ficam à esquerda; o resto, no centro.
+    const aEsquerda = aba.colunas.map((c) => (c.tipo ?? 'texto') === 'texto' && (c.largura ?? 18) >= 26);
+
+    ws.mergeCells(1, 1, 1, n);
+    const titulo = ws.getCell(1, 1);
+    titulo.value = (aba.titulo ?? aba.nome).toUpperCase();
+    titulo.font = { bold: true, size: 13, color: { argb: ROXO } };
+    titulo.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 26;
+
+    const cabecalho = ws.getRow(2);
+    cabecalho.values = aba.colunas.map((c) => c.titulo);
+    cabecalho.height = 32;
+    cabecalho.eachCell((cel) => {
+      cel.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROXO } };
+      cel.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cel.border = borda;
+    });
+
+    aba.linhas.forEach((linha, idx) => {
+      const row = ws.addRow(
         linha.map((v, i) => {
           if (v === null || v === undefined || v === '') return null;
           if (aba.colunas[i]?.tipo === 'data' && typeof v === 'string') {
@@ -48,22 +78,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
           return v;
         }),
       );
-    }
-
-    aba.colunas.forEach((c, i) => {
-      const col = ws.getColumn(i + 1);
-      if (c.tipo === 'data') col.numFmt = 'dd/mm/yyyy';
-      if (c.tipo === 'dinheiro') col.numFmt = '"R$" #,##0.00';
+      const total = linha[0] === 'Total';
+      for (let i = 1; i <= n; i++) {
+        const cel = row.getCell(i);
+        const c = aba.colunas[i - 1];
+        if (c.tipo === 'data') cel.numFmt = 'dd/mm/yyyy';
+        if (c.tipo === 'dinheiro') cel.numFmt = '"R$" #,##0.00';
+        cel.alignment = { horizontal: aEsquerda[i - 1] ? 'left' : 'center', vertical: 'middle', wrapText: aEsquerda[i - 1] };
+        cel.border = total ? { ...borda, top: { style: 'medium', color: { argb: ROXO } } } : borda;
+        if (total) {
+          cel.font = { bold: true };
+          cel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+        } else if (idx % 2 === 1) {
+          cel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F5FF' } };
+        }
+      }
     });
 
-    const topo = ws.getRow(1);
-    topo.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    topo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6D4FD8' } };
-    topo.alignment = { vertical: 'middle' };
-    topo.height = 20;
-    if (aba.colunas.length) {
-      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: aba.colunas.length } };
-    }
+    const ultimaDado = 2 + aba.linhas.filter((l) => l[0] !== 'Total').length;
+    ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: Math.max(2, ultimaDado), column: n } };
   }
 
   const buffer = await wb.xlsx.writeBuffer();
