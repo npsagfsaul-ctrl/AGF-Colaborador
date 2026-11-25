@@ -452,7 +452,17 @@ async function metas(mes?: string): Promise<Aba[]> {
     include: { colaborador: { select: { nome: true, setor: true } } },
     orderBy: [{ competencia: 'desc' }, { createdAt: 'asc' }],
   });
-  return [{
+  const contas = await prisma.contaAssinatura.findMany({
+    include: { colaboradores: { select: { nome: true }, orderBy: { nome: 'asc' } } },
+    orderBy: [{ servico: 'asc' }, { createdAt: 'asc' }],
+  });
+  // A senha não vai para o Excel: a planilha sai do site e circula.
+  const abaContas: Aba = {
+    nome: 'Contas das assinaturas',
+    colunas: [T('Assinatura', 14), T('Quem usa', 40), T('E-mail', 30), D('Próximo pagamento'), T('Observação', 30)],
+    linhas: contas.map((c) => [c.servico, c.colaboradores.map((m) => m.nome).join(', '), c.email, d(c.proximoPagamento), c.observacao]),
+  };
+  return [abaContas, {
     nome: 'Metas',
     colunas: [T('Mês', 18), T('Nome', 30), T('Setor'), T('Assinatura', 14), T('Observação', 30), D('Ativada em')],
     linhas: premios.map((p) => [nomeCompetencia(p.competencia), p.colaborador.nome, p.colaborador.setor, p.servico, p.observacao, d(p.ativadoEm)]),

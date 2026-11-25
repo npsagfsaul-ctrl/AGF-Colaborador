@@ -54,6 +54,7 @@ model Colaborador {
   recargas    RecargaBeneficio[]
   planoVidas  PlanoVida[]
   premios     Premio[]
+  contasAssinatura ContaAssinatura[] @relation("MembrosDaConta")
   planoMeses  PlanoMes[]
   salarios    Salario[]
 
@@ -225,6 +226,21 @@ model PlanoMes {
   colaboradorCentavos Int?
 
   @@unique([colaboradorId, competencia])
+}
+
+/// Conta de assinatura dividida entre quem bateu a meta (HBO Max, Spotify...).
+/// Cada colaborador usa uma tela. A senha fica atrás da senha do DP e não
+/// vai para o Excel.
+model ContaAssinatura {
+  id               String  @id @default(cuid())
+  servico          String
+  email            String?
+  senha            String?
+  proximoPagamento String?
+  observacao       String?
+  colaboradores    Colaborador[] @relation("MembrosDaConta")
+
+  createdAt DateTime @default(now())
 }
 
 /// Assinatura ganha como prêmio de meta (Spotify, HBO...).

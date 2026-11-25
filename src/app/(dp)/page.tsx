@@ -116,8 +116,17 @@ export default async function PainelPage() {
   const atrasadosAgenda = atrasosDaAgenda(agenda, feitosAgenda, hoje);
   const tituloAgenda = new Map(agenda.map((i) => [i.id, i.titulo]));
 
+  // Assinatura de prêmio a pagar nos próximos 7 dias, ou já vencida.
+  const contasAPagar = (await prisma.contaAssinatura.findMany({
+    where: { proximoPagamento: { not: null } },
+    include: { colaboradores: { select: { nome: true }, orderBy: { nome: 'asc' } } },
+  }))
+    .map((c) => ({ c, dias: diasEntre(hoje, c.proximoPagamento!) }))
+    .filter((x) => x.dias <= 7)
+    .sort((a, b) => a.dias - b.dias);
+
   const nada =
-    aniversarios.length + asos.length + deFerias.length + feriasAVencer.length +
+    contasAPagar.length + aniversarios.length + asos.length + deFerias.length + feriasAVencer.length +
     semHolerite.length + devendo.length + freelas.length + deHoje.length + atrasadosAgenda.length === 0;
 
   return (
@@ -229,6 +238,23 @@ export default async function PainelPage() {
                   <Link href={`/horas/${d.c.id}`}>{d.c.nome}</Link>
                   <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--danger)' }}>
                     {formatarHoras(d.saldo, true)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Bloco>
+        )}
+        {contasAPagar.length > 0 && (
+          <Bloco titulo="Assinaturas a pagar" cor="var(--warning)">
+            <ul className="dp-lista">
+              {contasAPagar.map((x) => (
+                <li key={x.c.id}>
+                  <Link href="/metas">
+                    {x.c.servico}
+                    {x.c.colaboradores.length > 0 && <span className="text-muted"> · {x.c.colaboradores.map((m) => m.nome.split(' ')[0]).join(', ')}</span>}
+                  </Link>
+                  <span style={{ color: x.dias < 0 ? 'var(--danger)' : 'var(--text-muted)', fontWeight: x.dias <= 0 ? 600 : undefined }}>
+                    {dataBR(x.c.proximoPagamento).slice(0, 5)} · {x.dias < 0 ? 'venceu' : quando(x.dias)}
                   </span>
                 </li>
               ))}
