@@ -1,3 +1,4 @@
+import { porNome } from '@/lib/ordem';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { saldoDe } from '@/lib/horas';
@@ -18,15 +19,8 @@ export default async function HorasPage() {
     (c) => saldoDe(c.saldoInicialMinutos, c.lancamentos, c.saldoInicialEm) < 0,
   ).length;
 
-  const porSetor = new Map<string, typeof colaboradores>();
-  for (const c of colaboradores) porSetor.set(c.setor ?? '', [...(porSetor.get(c.setor ?? '') ?? []), c]);
-  const grupos = [...porSetor.entries()]
-    .sort(([a], [b]) => {
-      if (a === '') return 1;
-      if (b === '') return -1;
-      return a.localeCompare(b, 'pt-BR');
-    })
-    .map(([setor, lista]) => ({
+  const grupos = [{ setor: '', lista: [...colaboradores].sort(porNome) }]
+    .map(({ setor, lista }) => ({
       setor,
       colaboradores: lista.map((c) => ({
         id: c.id,

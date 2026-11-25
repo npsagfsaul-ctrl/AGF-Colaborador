@@ -1,3 +1,4 @@
+import { porNome } from '@/lib/ordem';
 import { prisma } from '@/lib/prisma';
 import { lerJornada } from '@/lib/jornada';
 import ListaHorarios from '@/components/ListaHorarios';
@@ -7,8 +8,9 @@ export default async function HorariosPage() {
   const colaboradores = await prisma.colaborador.findMany({
     where: { ativo: true },
     select: { id: true, nome: true, setor: true, jornada: true, jornadaDetalhe: true },
-    orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+    orderBy: { nome: 'asc' },
   });
+  colaboradores.sort(porNome);
 
   return (
     <div>

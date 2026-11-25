@@ -1,3 +1,4 @@
+import { porNome } from '@/lib/ordem';
 import { prisma } from '@/lib/prisma';
 import { hojeISO } from '@/lib/datas';
 import ListaSalarios from '@/components/ListaSalarios';
@@ -8,8 +9,9 @@ export default async function SalariosPage() {
   const colaboradores = await prisma.colaborador.findMany({
     where: { ativo: true },
     include: { salarios: { orderBy: [{ desde: 'desc' }, { createdAt: 'desc' }] } },
-    orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+    orderBy: { nome: 'asc' },
   });
+  colaboradores.sort(porNome);
 
   return (
     <div>

@@ -41,7 +41,7 @@ const d = (s: string | null | undefined) => (valida(s) ? s : null);
 const r = (c: number | null | undefined) => (c === null || c === undefined ? null : c / 100);
 
 async function ativos() {
-  return prisma.colaborador.findMany({ where: { ativo: true }, orderBy: [{ setor: 'asc' }, { nome: 'asc' }] });
+  return prisma.colaborador.findMany({ where: { ativo: true }, orderBy: { nome: 'asc' } });
 }
 
 /* ─── Cada tela ─── */
@@ -50,7 +50,7 @@ async function colaboradores(): Promise<Aba[]> {
   const hoje = hojeISO();
   const lista = await prisma.colaborador.findMany({
     include: { ferias: { select: { inicio: true, fim: true, observacao: true } } },
-    orderBy: [{ ativo: 'desc' }, { setor: 'asc' }, { nome: 'asc' }],
+    orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
   });
   return [
     {
@@ -78,7 +78,7 @@ async function horas(): Promise<Aba[]> {
   const lista = await prisma.colaborador.findMany({
     where: { ativo: true },
     include: { lancamentos: { orderBy: { data: 'asc' } } },
-    orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+    orderBy: { nome: 'asc' },
   });
   return [
     {
@@ -133,7 +133,7 @@ async function salarios(): Promise<Aba[]> {
   const lista = await prisma.colaborador.findMany({
     where: { ativo: true },
     include: { salarios: { orderBy: [{ desde: 'desc' }, { createdAt: 'desc' }] } },
-    orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+    orderBy: { nome: 'asc' },
   });
   return [
     {
@@ -157,7 +157,7 @@ async function holerites(mes?: string): Promise<Aba[]> {
     const lista = await prisma.colaborador.findMany({
       where: { ativo: true },
       include: { holerites: { where: { competencia: mes } } },
-      orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+      orderBy: { nome: 'asc' },
     });
     return [{
       nome: 'Holerites',
@@ -189,7 +189,7 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
       prisma.colaborador.findMany({
         where: { ativo: true, beneficios: { some: { tipo } } },
         include: { beneficios: { where: { tipo } }, recargas: { where: { tipo, competencia: mes } } },
-        orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+        orderBy: { nome: 'asc' },
       }),
       prisma.mesBeneficio.findUnique({ where: { tipo_competencia: { tipo, competencia: mes } } }),
     ]);

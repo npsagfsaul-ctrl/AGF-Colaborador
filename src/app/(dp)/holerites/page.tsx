@@ -1,3 +1,4 @@
+import { porNome } from '@/lib/ordem';
 import { prisma } from '@/lib/prisma';
 import { competenciaAtual, hojeISO, nomeCompetencia, ultimasCompetencias } from '@/lib/datas';
 import ListaHolerites from '@/components/ListaHolerites';
@@ -11,8 +12,9 @@ export default async function HoleritesPage({ searchParams }: { searchParams: Pr
   const colaboradores = await prisma.colaborador.findMany({
     where: { ativo: true },
     include: { holerites: { where: { competencia }, select: { entregueEm: true } } },
-    orderBy: [{ setor: 'asc' }, { nome: 'asc' }],
+    orderBy: { nome: 'asc' },
   });
+  colaboradores.sort(porNome);
 
   return (
     <ListaHolerites

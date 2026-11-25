@@ -107,7 +107,7 @@ export default function SaldosEmLote({ grupos }: { grupos: GrupoSetor[] }) {
             <tbody>
               {grupos.map((g) => (
                 <Fragment key={g.setor || 'sem-setor'}>
-                  <tr>
+                  {grupos.length > 1 && <tr>
                     <td
                       colSpan={4}
                       style={{
@@ -121,7 +121,7 @@ export default function SaldosEmLote({ grupos }: { grupos: GrupoSetor[] }) {
                     >
                       {g.setor || 'Sem setor'}
                     </td>
-                  </tr>
+                  </tr>}
 
                   {g.colaboradores.map((c) => {
                     const valor = valores[c.id] ?? '';
