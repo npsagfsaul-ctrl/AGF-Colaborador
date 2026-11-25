@@ -12,10 +12,12 @@ export async function salvarConta(id: string | null, fd: FormData): Promise<Resu
     if (!servico) throw new Error('Escreva a assinatura (HBO Max, Spotify…).');
     const proximoPagamento = texto(fd, 'proximoPagamento');
     if (proximoPagamento && !valida(proximoPagamento)) throw new Error('Próximo pagamento: data inválida.');
+    // Campo fora do formulário (HBO não mostra os do Spotify) fica como está.
+    const opcional = (campo: string) => (fd.has(campo) ? texto(fd, campo) : undefined);
     const valor = texto(fd, 'valor');
-    const valorCentavos = valor ? parseDinheiro(valor) : null;
+    const valorCentavos = !fd.has('valor') ? undefined : valor ? parseDinheiro(valor) : null;
     if (valor && valorCentavos === null) throw new Error('Valor mal escrito. Use, por exemplo, 40,90.');
-    const link = texto(fd, 'linkConvite');
+    const link = opcional('linkConvite');
     if (link && !/^https?:\/\//i.test(link)) throw new Error('O link de convite tem de começar com https://');
     const membros = fd.getAll('membros').map(String).filter(Boolean).map((cid) => ({ id: cid }));
     const dados = {
@@ -24,10 +26,10 @@ export async function salvarConta(id: string | null, fd: FormData): Promise<Resu
       senha: texto(fd, 'senha'),
       proximoPagamento,
       valorCentavos,
-      telefone: texto(fd, 'telefone'),
+      telefone: opcional('telefone'),
       linkConvite: link,
-      endereco: texto(fd, 'endereco'),
-      observacao: texto(fd, 'observacao'),
+      endereco: opcional('endereco'),
+      observacao: opcional('observacao'),
     };
     if (id) {
       await prisma.contaAssinatura.update({ where: { id }, data: { ...dados, colaboradores: { set: membros } } });

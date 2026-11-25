@@ -156,29 +156,19 @@ export default function ContasAssinatura({
                 {c.membros.length ? c.membros.map((m) => m.nome.split(' ')[0]).join(', ') : <span className="text-muted">ninguém usando</span>}
               </div>
               <div style={{ fontSize: '0.875rem', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 4 }}>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span className="text-muted" style={{ width: 64 }}>E-mail</span>
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email ?? '—'}</span>
-                  {c.email && (
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => copiar(`${c.id}-e`, c.email!)}>
-                      {copiado === `${c.id}-e` ? 'Copiado' : 'Copiar'}
-                    </button>
-                  )}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                  <span className="text-muted" style={{ width: 64, flexShrink: 0 }}>E-mail</span>
+                  <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{c.email ?? '—'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span className="text-muted" style={{ width: 64 }}>Senha</span>
-                  <span className="dp-num" style={{ flex: 1 }}>{c.senha ? (ver ? c.senha : '••••••••') : '—'}</span>
+                  <span className="text-muted" style={{ width: 64, flexShrink: 0 }}>Senha</span>
+                  <span className="dp-num" style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{c.senha ? (ver ? c.senha : '••••••••') : '—'}</span>
                   {c.senha && (
-                    <>
-                      <Olho
-                        ver={ver}
-                        rotulo={ver ? 'Esconder senha' : 'Mostrar senha'}
-                        onClick={() => setVerSenha((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; })}
-                      />
-                      <button type="button" className="btn btn-outline btn-sm" onClick={() => copiar(`${c.id}-s`, c.senha!)}>
-                        {copiado === `${c.id}-s` ? 'Copiado' : 'Copiar'}
-                      </button>
-                    </>
+                    <Olho
+                      ver={ver}
+                      rotulo={ver ? 'Esconder senha' : 'Mostrar senha'}
+                      onClick={() => setVerSenha((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; })}
+                    />
                   )}
                 </div>
                 {[
@@ -186,12 +176,9 @@ export default function ContasAssinatura({
                   { k: 'l', rotulo: 'Convite', v: c.linkConvite },
                   { k: 'n', rotulo: 'Endereço', v: c.endereco },
                 ].filter((x) => x.v).map((x) => (
-                  <div key={x.k} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span className="text-muted" style={{ width: 64 }}>{x.rotulo}</span>
-                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.v!}>{x.v}</span>
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => copiar(`${c.id}-${x.k}`, x.v!)}>
-                      {copiado === `${c.id}-${x.k}` ? 'Copiado' : 'Copiar'}
-                    </button>
+                  <div key={x.k} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                    <span className="text-muted" style={{ width: 64, flexShrink: 0 }}>{x.rotulo}</span>
+                    <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{x.v}</span>
                   </div>
                 ))}
               </div>
@@ -244,6 +231,10 @@ function Formulario({
   onCancelar: () => void;
 }) {
   const marcados = new Set(c?.membros.map((m) => m.id));
+  // HBO: só quem usa, e-mail, senha e pagamento. Spotify Família: mais o
+  // valor, telefone, link de convite e endereço.
+  const [servico, setServico] = useState(c?.servico ?? 'HBO Max');
+  const spotify = /spotify/i.test(servico);
   return (
     <form
       className="card"
@@ -255,7 +246,7 @@ function Formulario({
       <div className="grid grid-cols-3 gap-3">
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label">Assinatura</label>
-          <input name="servico" className="form-input" list="servicos-conta" defaultValue={c?.servico ?? 'HBO Max'} required />
+          <input name="servico" className="form-input" list="servicos-conta" value={servico} onChange={(e) => setServico(e.target.value)} required />
           <datalist id="servicos-conta">{servicos.map((s) => <option key={s} value={s} />)}</datalist>
         </div>
         <div className="form-group" style={{ marginBottom: 0 }}>
@@ -270,6 +261,7 @@ function Formulario({
           <label className="form-label">Próximo pagamento</label>
           <input name="proximoPagamento" type="date" className="form-input" defaultValue={c?.proximoPagamento ?? ''} />
         </div>
+        {spotify && (<>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label className="form-label">Valor</label>
           <input name="valor" className="form-input" inputMode="decimal" defaultValue={dinheiroParaCampo(c?.valorCentavos)} placeholder="40,90" />
@@ -286,10 +278,7 @@ function Formulario({
           <label className="form-label">Endereço do convite</label>
           <input name="endereco" className="form-input" defaultValue={c?.endereco ?? ''} />
         </div>
-        <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 3' }}>
-          <label className="form-label">Observação</label>
-          <input name="observacao" className="form-input" defaultValue={c?.observacao ?? ''} />
-        </div>
+        </>)}
       </div>
       <div className="form-label" style={{ marginTop: 12 }}>Quem usa</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 4 }}>
