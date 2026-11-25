@@ -34,7 +34,15 @@ export type Celula = string | number | null | Formula;
  * `titulo` é a linha de cima da planilha; sem ele, vale o nome da aba.
  * `notas` vão embaixo da tabela, uma por linha — a primeira sai em negrito.
  */
-export interface Aba { nome: string; titulo?: string; colunas: Coluna[]; linhas: Celula[][]; notas?: string[] }
+export interface Aba {
+  nome: string;
+  titulo?: string;
+  colunas: Coluna[];
+  linhas: Celula[][];
+  notas?: string[];
+  /** Cor de fundo por linha (argb), no lugar da zebra. Ex.: uma cor por família. */
+  cores?: (string | null)[];
+}
 export interface Planilha { arquivo: string; abas: Aba[] }
 
 /** "2026-11" + 1 → "2026-12". */
@@ -362,49 +370,64 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
   ];
 }
 
+/** Uma cor clara por família, alternando. */
+const CORES_FAMILIA = ['FFE0F2FE', 'FFFCE7F3', 'FFDCFCE7', 'FFFEF3C7', 'FFE0E7FF', 'FFFFEDD5'];
+
 /**
  * Fatura do plano no mês, no jeito da planilha "Hospitalar": uma linha por
- * titular, com fórmulas. A empresa paga o titular; o colaborador paga
- * dependentes e consultas/exames, na folha do mês seguinte.
+ * pessoa, o titular e embaixo os dependentes, cada família numa cor. A
+ * empresa paga o titular; o colaborador paga dependentes e consultas/exames,
+ * na folha do mês seguinte.
  */
 async function faturaPlano(mes: string): Promise<Aba> {
-  const linhas = await faturaDoMes(mes);
+  const familias = await faturaDoMes(mes);
   const P = 3;
-  const corpo: Celula[][] = linhas.map((l, i) => {
-    const n = P + i;
-    return [
-      l.nome,
-      l.nomesDependentes.join(', ') || null,
-      r(l.titular),
-      r(l.dependentes) || null,
-      { formula: `C${n}+D${n}`, valor: (l.titular + l.dependentes) / 100 },
-      { formula: `C${n}`, valor: l.empresa / 100 },
-      r(l.consultas) || null,
-      { formula: `D${n}+G${n}`, valor: l.colaborador / 100 },
-      l.observacao || null,
-      d(l.lancadoEm),
-    ];
+  const corpo: Celula[][] = [];
+  const cores: (string | null)[] = [];
+  familias.forEach((l, i) => {
+    for (const p of l.pessoas) {
+      const n = P + corpo.length;
+      const titular = p.vidaId === null;
+      corpo.push([
+        p.nome,
+        p.parentesco,
+        r(p.mensalidade),
+        r(p.consultas) || null,
+        titular ? { formula: `C${n}`, valor: p.mensalidade / 100 } : null,
+        titular
+          ? { formula: `D${n}`, valor: p.consultas / 100 }
+          : { formula: `C${n}+D${n}`, valor: (p.mensalidade + p.consultas) / 100 },
+        titular ? l.observacao || null : null,
+        titular ? d(l.lancadoEm) : null,
+      ]);
+      cores.push(CORES_FAMILIA[i % CORES_FAMILIA.length]);
+    }
   });
   const u = P + corpo.length - 1;
   const soma = (col: string, v: number) => ({ formula: `SUM(${col}${P}:${col}${u})`, valor: v / 100 });
-  const tot = (k: 'titular' | 'dependentes' | 'consultas' | 'empresa' | 'colaborador') => linhas.reduce((s, l) => s + l[k], 0);
-  corpo.push(['Total', null, soma('C', tot('titular')), soma('D', tot('dependentes')),
-    soma('E', tot('titular') + tot('dependentes')), soma('F', tot('empresa')), soma('G', tot('consultas')), soma('H', tot('colaborador')), null, null]);
+  const pessoas = familias.flatMap((l) => l.pessoas);
+  const mensalidades = pessoas.reduce((s, p) => s + p.mensalidade, 0);
+  const consultas = pessoas.reduce((s, p) => s + p.consultas, 0);
+  const empresa = familias.reduce((s, l) => s + l.titular, 0);
+  const desconto = mensalidades - empresa + consultas;
+  corpo.push(['Total', null, soma('C', mensalidades), soma('D', consultas), soma('E', empresa), soma('F', desconto), null, null]);
   const t = P + corpo.length - 1;
-  corpo.push(['Total da fatura (empresa + colaboradores)', null, null, null, null, null, null,
-    { formula: `F${t}+H${t}`, valor: (tot('empresa') + tot('colaborador')) / 100 }, null, null]);
+  corpo.push(['Total da fatura (empresa + colaboradores)', null, null, null, null,
+    { formula: `E${t}+F${t}`, valor: (empresa + desconto) / 100 }, null, null]);
   const folha = nomeCompetencia(somaMesCompetencia(mes, 1));
   return {
     nome: `Plano - ${nomeCompetencia(mes)}`.slice(0, 31),
     titulo: `Plano de saúde Hospitalar — fatura de ${nomeCompetencia(mes)}`,
-    colunas: [T('Titular', 30), T('Dependentes', 28), R('Mensalidade titular'), R('Mensalidade dependentes'), R('Total família'), R('Empresa paga'), { ...R('Consultas e exames'), largura: 16 }, R('Desconto em folha'), T('Descrição', 30), D('Lançado em')],
+    colunas: [T('Colaborador', 30), T('Parentesco', 13), R('Mensalidade'), { ...R('Consultas e exames'), largura: 16 }, R('Empresa paga'), R('Desconto em folha'), T('Descrição', 30), D('Lançado em')],
     linhas: corpo,
+    cores,
     notas: [
       'Como é calculado',
+      'Cada família numa cor: o titular e, embaixo, os dependentes.',
       'Mensalidade do titular: a empresa paga 100% (todos são representantes).',
       'Mensalidade dos dependentes: paga pelo colaborador.',
-      'Consultas/exames (coparticipação): pagos pelo colaborador, só quando usou.',
-      `Desconto em folha = Mensalidade dependentes + Consultas/exames, lançado na folha de ${folha}.`,
+      'Consultas e exames (coparticipação): pagos pelo colaborador, só quando usou, seja do titular ou do dependente.',
+      `Desconto em folha = Mensalidade dos dependentes + Consultas e exames da família, lançado na folha de ${folha}.`,
       'Total da fatura = Empresa paga + Desconto em folha de todos.',
     ],
   };

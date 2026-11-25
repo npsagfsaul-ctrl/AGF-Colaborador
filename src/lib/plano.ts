@@ -25,6 +25,29 @@ export function vidaNoMes(v: { inclusao: string | null; exclusao: string | null 
 
 export const ehTitular = (v: { parentesco: string }) => v.parentesco.trim().toLowerCase() === 'titular';
 
+/** O campo Json das consultas dos dependentes, lido com cuidado. */
+export function consultasPorDependente(json: unknown): Record<string, number> {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return {};
+  const saida: Record<string, number> = {};
+  for (const [id, v] of Object.entries(json)) if (typeof v === 'number' && v > 0) saida[id] = v;
+  return saida;
+}
+
+/**
+ * Consultas da família no mês: as do titular mais as dos dependentes que
+ * estão no plano naquele mês.
+ */
+export function consultasDaFamilia(
+  m: { consultasCentavos: number | null; consultasDependentes: unknown } | undefined,
+  vidas: { id: string; parentesco: string; inclusao: string | null; exclusao: string | null }[],
+  comp: string,
+): number {
+  if (!m) return 0;
+  const deps = consultasPorDependente(m.consultasDependentes);
+  const doMes = vidas.filter((v) => !ehTitular(v) && vidaNoMes(v, comp));
+  return (m.consultasCentavos ?? 0) + doMes.reduce((s, v) => s + (deps[v.id] ?? 0), 0);
+}
+
 export interface ContaFamilia {
   titular: number;
   dependentes: number;

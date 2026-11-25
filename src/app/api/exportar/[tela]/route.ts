@@ -90,6 +90,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
         if (total) {
           cel.font = { bold: true };
           cel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+        } else if (aba.cores?.[idx]) {
+          cel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: aba.cores[idx]! } };
         } else if (idx % 2 === 1) {
           cel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F5FF' } };
         }

@@ -215,7 +215,10 @@ model PlanoMes {
 
   /// aaaa-mm da fatura. O desconto vai na folha do mês seguinte.
   competencia String
+  /// Consultas e exames do titular.
   consultasCentavos Int?
+  /// Consultas e exames dos dependentes: { [planoVidaId]: centavos }.
+  consultasDependentes Json?
   observacao  String?
   lancadoEm   String?
   empresaCentavos     Int?

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { marcarPlanoLancado, salvarConsultasPlano } from '@/actions/plano';
 import { dataBR } from '@/lib/datas';
 import { dinheiroParaCampo, formatarDinheiro } from '@/lib/dinheiro';
-import type { LinhaFatura } from '@/lib/planoDados';
+import type { LinhaFatura, PessoaFatura } from '@/lib/planoDados';
 import type { Resultado } from '@/lib/acao';
 import Avatar from './Avatar';
 
@@ -91,7 +91,7 @@ export default function FaturaPlano({
                 <th style={{ textAlign: 'left' }}>Titular</th>
                 <th style={{ textAlign: 'right' }} title="Mensalidade do titular: a empresa paga 100%">Titular</th>
                 <th style={{ textAlign: 'right' }} title="Mensalidade dos dependentes: o colaborador paga">Dependentes</th>
-                <th style={{ textAlign: 'left', width: 120 }} title="Coparticipação: só desconta se usou">Consultas/exames</th>
+                <th style={{ textAlign: 'left', width: 190 }} title="Coparticipação: só desconta se usou">Consultas/exames</th>
                 <th className="dp-so-largo" style={{ textAlign: 'left' }}>Descrição</th>
                 <th style={{ textAlign: 'right' }}>Desc. folha</th>
               </tr>
@@ -99,12 +99,15 @@ export default function FaturaPlano({
             <tbody>
               {linhas.map((l) => (
                 <Linha
-                  key={`${competencia}-${l.colaboradorId}-${l.consultas}-${l.observacao}`}
+                  key={`${competencia}-${l.colaboradorId}-${l.pessoas.map((p) => p.consultas).join('.')}-${l.observacao}`}
                   l={l}
                   ocupado={ocupado}
-                  onSalvar={(v, o) => {
-                    if (v.trim() === dinheiroParaCampo(l.consultas || null) && o.trim() === l.observacao) return;
-                    rodar(() => salvarConsultasPlano(competencia, l.colaboradorId, v, o));
+                  onSalvar={(valores, o) => {
+                    const mudou = l.pessoas.some((p) => (valores[chave(p)] ?? '').trim() !== campo(p)) || o.trim() !== l.observacao;
+                    if (!mudou) return;
+                    const dependentes: Record<string, string> = {};
+                    for (const p of l.pessoas) if (p.vidaId) dependentes[p.vidaId] = valores[p.vidaId] ?? '';
+                    rodar(() => salvarConsultasPlano(competencia, l.colaboradorId, { titular: valores.titular ?? '', dependentes }, o));
                   }}
                   onMarcar={() => rodar(() => marcarPlanoLancado(competencia, [l.colaboradorId], !l.lancadoEm))}
                 />
@@ -117,6 +120,9 @@ export default function FaturaPlano({
   );
 }
 
+const chave = (p: PessoaFatura) => p.vidaId ?? 'titular';
+const campo = (p: PessoaFatura) => dinheiroParaCampo(p.consultas || null);
+
 function Linha({
   l,
   ocupado,
@@ -125,10 +131,10 @@ function Linha({
 }: {
   l: LinhaFatura;
   ocupado: boolean;
-  onSalvar: (valor: string, observacao: string) => void;
+  onSalvar: (valores: Record<string, string>, observacao: string) => void;
   onMarcar: () => void;
 }) {
-  const [valor, setValor] = useState(dinheiroParaCampo(l.consultas || null));
+  const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(l.pessoas.map((p) => [chave(p), campo(p)])));
   const [obs, setObs] = useState(l.observacao);
   const travado = !!l.lancadoEm;
 
@@ -158,16 +164,28 @@ function Linha({
       <td style={{ textAlign: 'right' }} className="dp-num">{formatarDinheiro(l.titular)}</td>
       <td style={{ textAlign: 'right' }} className="dp-num">{l.dependentes ? formatarDinheiro(l.dependentes) : '—'}</td>
       <td>
-        <input
-          className="form-input"
-          inputMode="decimal"
-          value={valor}
-          placeholder="não usou"
-          disabled={travado}
-          onChange={(e) => setValor(e.target.value)}
-          onBlur={() => onSalvar(valor, obs)}
-          style={{ width: 110 }}
-        />
+        {/* Uma caixa por pessoa da família: o titular e cada dependente. */}
+        <div style={{ display: 'grid', gap: 4 }}>
+          {l.pessoas.map((p) => (
+            <label key={chave(p)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {l.pessoas.length > 1 && (
+                <span className="text-muted" style={{ fontSize: '0.7rem', width: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.nome}>
+                  {p.nome.split(' ')[0]}
+                </span>
+              )}
+              <input
+                className="form-input"
+                inputMode="decimal"
+                value={valores[chave(p)] ?? ''}
+                placeholder="não usou"
+                disabled={travado}
+                onChange={(e) => setValores((v) => ({ ...v, [chave(p)]: e.target.value }))}
+                onBlur={() => onSalvar(valores, obs)}
+                style={{ width: 110 }}
+              />
+            </label>
+          ))}
+        </div>
       </td>
       <td className="dp-so-largo">
         <input
@@ -175,7 +193,7 @@ function Linha({
           value={obs}
           disabled={travado}
           onChange={(e) => setObs(e.target.value)}
-          onBlur={() => onSalvar(valor, obs)}
+          onBlur={() => onSalvar(valores, obs)}
         />
       </td>
       <td style={{ textAlign: 'right' }}>
