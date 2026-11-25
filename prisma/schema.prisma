@@ -54,6 +54,7 @@ model Colaborador {
   recargas    RecargaBeneficio[]
   planoVidas  PlanoVida[]
   premios     Premio[]
+  planoMeses  PlanoMes[]
   salarios    Salario[]
 
   createdAt DateTime @default(now())
@@ -202,6 +203,25 @@ model PlanoVida {
   createdAt DateTime @default(now())
 
   @@index([colaboradorId])
+}
+
+/// A fatura do plano num mês, por titular: o que ele usou (consultas e
+/// exames, só desconta se usar) e se já foi lançado na folha. Ao lançar,
+/// guarda os valores daquela hora — a mensalidade pode ter reajuste depois.
+model PlanoMes {
+  id            String      @id @default(cuid())
+  colaboradorId String
+  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id], onDelete: Cascade)
+
+  /// aaaa-mm da fatura. O desconto vai na folha do mês seguinte.
+  competencia String
+  consultasCentavos Int?
+  observacao  String?
+  lancadoEm   String?
+  empresaCentavos     Int?
+  colaboradorCentavos Int?
+
+  @@unique([colaboradorId, competencia])
 }
 
 /// Assinatura ganha como prêmio de meta (Spotify, HBO...).

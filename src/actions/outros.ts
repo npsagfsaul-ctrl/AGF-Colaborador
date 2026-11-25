@@ -56,8 +56,7 @@ export async function incluirNoPlano(fd: FormData): Promise<Resultado> {
         nascimento: data(fd, 'nascimento', 'Nascimento'),
         plano: texto(fd, 'plano'),
         carteirinha: texto(fd, 'carteirinha'),
-        valorCentavos: dinheiro(fd, 'valor', 'Valor'),
-        descontoCentavos: dinheiro(fd, 'desconto', 'Desconto'),
+        valorCentavos: dinheiro(fd, 'valor', 'Mensalidade'),
         inclusao: data(fd, 'inclusao', 'Inclusão') ?? hojeISO(),
         observacao: texto(fd, 'observacao'),
       },
@@ -72,8 +71,7 @@ export async function atualizarVida(id: string, fd: FormData): Promise<Resultado
       data: {
         plano: texto(fd, 'plano'),
         carteirinha: texto(fd, 'carteirinha'),
-        valorCentavos: dinheiro(fd, 'valor', 'Valor'),
-        descontoCentavos: dinheiro(fd, 'desconto', 'Desconto'),
+        valorCentavos: dinheiro(fd, 'valor', 'Mensalidade'),
         observacao: texto(fd, 'observacao'),
       },
     });

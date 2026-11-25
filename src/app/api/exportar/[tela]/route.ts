@@ -79,7 +79,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
           return v;
         }),
       );
-      const total = linha[0] === 'Total';
+      const total = typeof linha[0] === 'string' && linha[0].startsWith('Total');
       for (let i = 1; i <= n; i++) {
         const cel = row.getCell(i);
         const c = aba.colunas[i - 1];
@@ -96,7 +96,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tela: st
       }
     });
 
-    const ultimaDado = 2 + aba.linhas.filter((l) => l[0] !== 'Total').length;
+    const ultimaDado = 2 + aba.linhas.filter((l) => !(typeof l[0] === 'string' && l[0].startsWith('Total'))).length;
     ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: Math.max(2, ultimaDado), column: n } };
 
     // Explicação embaixo da tabela, para quem abrir sem conhecer a conta.

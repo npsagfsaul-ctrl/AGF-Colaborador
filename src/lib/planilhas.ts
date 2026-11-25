@@ -15,6 +15,7 @@ import { descontoFolhaVA, descontoFolhaVT, diasDoMes, diasPadrao, diasQueTrabalh
 import { NOMES_MES, ocorrenciasNoMes, rotuloFrequencia } from './agenda';
 import { feriadosDoAno } from './feriados';
 import { itensDaAgenda } from './agendaDados';
+import { faturaDoMes } from './planoDados';
 
 /**
  * O conteúdo de cada planilha, sem nada de Excel: abas, colunas e linhas.
@@ -35,6 +36,13 @@ export type Celula = string | number | null | Formula;
  */
 export interface Aba { nome: string; titulo?: string; colunas: Coluna[]; linhas: Celula[][]; notas?: string[] }
 export interface Planilha { arquivo: string; abas: Aba[] }
+
+/** "2026-11" + 1 → "2026-12". */
+function somaMesCompetencia(comp: string, n: number): string {
+  const [a, m] = comp.split('-').map(Number);
+  const t = a * 12 + (m - 1) + n;
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
+}
 
 const T = (titulo: string, largura = 18): Coluna => ({ titulo, largura });
 const D = (titulo: string): Coluna => ({ titulo, tipo: 'data', largura: 13 });
@@ -354,15 +362,64 @@ async function beneficio(tipo: TipoBeneficio, mes?: string): Promise<Aba[]> {
   ];
 }
 
-async function plano(): Promise<Aba[]> {
+/**
+ * Fatura do plano no mês, no jeito da planilha "Hospitalar": uma linha por
+ * titular, com fórmulas. A empresa paga o titular; o colaborador paga
+ * dependentes e consultas/exames, na folha do mês seguinte.
+ */
+async function faturaPlano(mes: string): Promise<Aba> {
+  const linhas = await faturaDoMes(mes);
+  const P = 3;
+  const corpo: Celula[][] = linhas.map((l, i) => {
+    const n = P + i;
+    return [
+      l.nome,
+      l.nomesDependentes.join(', ') || null,
+      r(l.titular),
+      r(l.dependentes) || null,
+      { formula: `C${n}+D${n}`, valor: (l.titular + l.dependentes) / 100 },
+      { formula: `C${n}`, valor: l.empresa / 100 },
+      r(l.consultas) || null,
+      { formula: `D${n}+G${n}`, valor: l.colaborador / 100 },
+      l.observacao || null,
+      d(l.lancadoEm),
+    ];
+  });
+  const u = P + corpo.length - 1;
+  const soma = (col: string, v: number) => ({ formula: `SUM(${col}${P}:${col}${u})`, valor: v / 100 });
+  const tot = (k: 'titular' | 'dependentes' | 'consultas' | 'empresa' | 'colaborador') => linhas.reduce((s, l) => s + l[k], 0);
+  corpo.push(['Total', null, soma('C', tot('titular')), soma('D', tot('dependentes')),
+    soma('E', tot('titular') + tot('dependentes')), soma('F', tot('empresa')), soma('G', tot('consultas')), soma('H', tot('colaborador')), null, null]);
+  const t = P + corpo.length - 1;
+  corpo.push(['Total da fatura (empresa + colaboradores)', null, null, null, null, null, null,
+    { formula: `F${t}+H${t}`, valor: (tot('empresa') + tot('colaborador')) / 100 }, null, null]);
+  const folha = nomeCompetencia(somaMesCompetencia(mes, 1));
+  return {
+    nome: `Plano - ${nomeCompetencia(mes)}`.slice(0, 31),
+    titulo: `Plano de saúde Hospitalar — fatura de ${nomeCompetencia(mes)}`,
+    colunas: [T('Titular', 30), T('Dependentes', 28), R('Mensalidade titular'), R('Mensalidade dependentes'), R('Total família'), R('Empresa paga'), { ...R('Consultas e exames'), largura: 16 }, R('Desconto em folha'), T('Descrição', 30), D('Lançado em')],
+    linhas: corpo,
+    notas: [
+      'Como é calculado',
+      'Mensalidade do titular: a empresa paga 100% (todos são representantes).',
+      'Mensalidade dos dependentes: paga pelo colaborador.',
+      'Consultas/exames (coparticipação): pagos pelo colaborador, só quando usou.',
+      `Desconto em folha = Mensalidade dependentes + Consultas/exames, lançado na folha de ${folha}.`,
+      'Total da fatura = Empresa paga + Desconto em folha de todos.',
+    ],
+  };
+}
+
+async function plano(mes?: string): Promise<Aba[]> {
   const vidas = await prisma.planoVida.findMany({
     include: { colaborador: { select: { nome: true, setor: true } } },
     orderBy: [{ createdAt: 'asc' }],
   });
   return [{
-    nome: 'Plano de saúde',
-    colunas: [T('Colaborador', 30), T('Pessoa', 30), T('Parentesco', 12), D('Nascimento'), T('Plano', 20), T('Carteirinha', 20), R('Valor'), R('Desconto'), D('Inclusão'), D('Exclusão'), T('Observação', 30)],
-    linhas: vidas.map((v) => [v.colaborador.nome, v.nome ?? v.colaborador.nome, v.parentesco, d(v.nascimento), v.plano, v.carteirinha, r(v.valorCentavos), r(v.descontoCentavos), d(v.inclusao), d(v.exclusao), v.observacao]),
+    nome: 'Plano - vidas',
+    titulo: 'Plano de saúde — vidas cadastradas',
+    colunas: [T('Colaborador', 30), T('Pessoa', 30), T('Parentesco', 12), D('Nascimento'), T('Plano', 20), T('Carteirinha', 20), R('Mensalidade'), D('Inclusão'), D('Exclusão'), T('Observação', 30)],
+    linhas: vidas.map((v) => [v.colaborador.nome, v.nome ?? v.colaborador.nome, v.parentesco, d(v.nascimento), v.plano, v.carteirinha, r(v.valorCentavos), d(v.inclusao), d(v.exclusao), v.observacao]),
   }];
 }
 
@@ -453,7 +510,7 @@ export async function montarPlanilha(tela: Tela, mesPedido: string | null): Prom
     case 'holerites': return { arquivo: `Holerites${sufixoMes}`, abas: await holerites(mes) };
     case 'va': return { arquivo: `Vale Alimentação${sufixoMes}`, abas: await beneficio('va', mes) };
     case 'vt': return { arquivo: `Vale Transporte${sufixoMes}`, abas: await beneficio('vt', mes) };
-    case 'plano': return { arquivo: `Plano de saúde - ${dia}`, abas: await plano() };
+    case 'plano': return { arquivo: `Plano de saúde${sufixoMes}`, abas: [await faturaPlano(mes), ...(await plano())] };
     case 'metas': return { arquivo: `Metas${sufixoMes}`, abas: await metas(mes) };
     case 'freelas': return { arquivo: `Freelance - ${dia}`, abas: await freelas() };
     case 'tudo': {

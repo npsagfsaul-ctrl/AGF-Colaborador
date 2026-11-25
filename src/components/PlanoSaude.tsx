@@ -48,7 +48,6 @@ export default function PlanoSaude({
   const ativas = vidas.filter((v) => !v.exclusao || v.exclusao > hoje);
   const saiu = vidas.filter((v) => v.exclusao && v.exclusao <= hoje);
   const custo = ativas.reduce((s, v) => s + (v.valorCentavos ?? 0), 0);
-  const desconto = ativas.reduce((s, v) => s + (v.descontoCentavos ?? 0), 0);
 
   // Agrupa por colaborador: titular primeiro, dependentes embaixo.
   const familias = new Map<string, Vida[]>();
@@ -71,8 +70,7 @@ export default function PlanoSaude({
     <div style={{ display: 'grid', gap: 16 }}>
       <div className="card" style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'center' }}>
         <div><div className="stat-label">Vidas no plano</div><div className="dp-num" style={{ fontSize: '1.5rem' }}>{ativas.length}</div></div>
-        <div><div className="stat-label">Custo do mês</div><div className="dp-num" style={{ fontSize: '1.5rem' }}>{formatarDinheiro(custo)}</div></div>
-        <div><div className="stat-label">Descontado em folha</div><div className="dp-num" style={{ fontSize: '1.5rem' }}>{formatarDinheiro(desconto)}</div></div>
+        <div><div className="stat-label">Mensalidades</div><div className="dp-num" style={{ fontSize: '1.5rem' }}>{formatarDinheiro(custo)}</div></div>
         <button type="button" className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setNovo((v) => !v)}>
           {novo ? 'Fechar' : '+ Incluir no plano'}
         </button>
@@ -122,12 +120,8 @@ export default function PlanoSaude({
               <input name="nascimento" type="date" className="form-input" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Valor do plano</label>
+              <label className="form-label">Mensalidade</label>
               <input name="valor" className="form-input" placeholder="350,00" />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Desconto em folha</label>
-              <input name="desconto" className="form-input" placeholder="70,00" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Inclusão</label>
@@ -169,8 +163,7 @@ export default function PlanoSaude({
                       <strong style={{ width: '100%' }}>{v.nome} <span className="text-muted" style={{ fontWeight: 400 }}>· {v.parentesco}</span></strong>
                       <input name="plano" className="form-input" list="planos" defaultValue={v.plano ?? ''} placeholder="Plano" style={{ width: 170 }} />
                       <input name="carteirinha" className="form-input" defaultValue={v.carteirinha ?? ''} placeholder="Carteirinha" style={{ width: 170 }} />
-                      <input name="valor" className="form-input" defaultValue={dinheiroParaCampo(v.valorCentavos)} placeholder="Valor" style={{ width: 110 }} />
-                      <input name="desconto" className="form-input" defaultValue={dinheiroParaCampo(v.descontoCentavos)} placeholder="Desconto" style={{ width: 110 }} />
+                      <input name="valor" className="form-input" defaultValue={dinheiroParaCampo(v.valorCentavos)} placeholder="Mensalidade" style={{ width: 120 }} />
                       <input name="observacao" className="form-input" defaultValue={v.observacao ?? ''} placeholder="Observação" style={{ flex: '1 1 160px' }} />
                       <button type="submit" className="btn btn-primary btn-sm" disabled={ocupado}>Salvar</button>
                       <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditando(null)}>Cancelar</button>
@@ -187,7 +180,6 @@ export default function PlanoSaude({
                       </span>
                       <span style={{ textAlign: 'right' }}>
                         <span className="dp-num">{formatarDinheiro(v.valorCentavos)}</span>
-                        {v.descontoCentavos ? <div className="text-muted" style={{ fontSize: '0.75rem' }}>desconta {formatarDinheiro(v.descontoCentavos)}</div> : null}
                       </span>
                       <span style={{ display: 'flex', gap: 6 }}>
                         <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditando(v.id)}>Editar</button>
