@@ -66,6 +66,12 @@ export async function criarItemAgenda(d: NovoItemAgenda): Promise<Resultado> {
         });
         return;
       }
+      case 'DIA_UTIL': {
+        const n = Number(d.diaMes ?? 5);
+        if (!(Number.isInteger(n) && n >= 1 && n <= 10)) throw new Error('Qual dia útil? De 1 a 10.');
+        await prisma.itemAgenda.create({ data: { ...comum, frequencia: 'DIA_UTIL', diaMes: n } });
+        return;
+      }
       default:
         throw new Error('Repetição inválida.');
     }

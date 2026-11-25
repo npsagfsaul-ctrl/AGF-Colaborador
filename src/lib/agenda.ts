@@ -6,8 +6,10 @@
  * sobre texto "aaaa-mm-dd", sem fuso para dar errado.
  */
 import { diaDaSemana, ehDiaUtil } from './feriados';
+import { enesimoDiaUtilSalario } from './pagamentos';
 
-export type Frequencia = 'DIAS_UTEIS' | 'SEMANAL' | 'MENSAL' | 'MENSAL_SEMANA' | 'UNICA';
+/** DIA_UTIL: o enésimo dia útil do mês (diaMes = n), contado como para salário. */
+export type Frequencia = 'DIAS_UTEIS' | 'SEMANAL' | 'MENSAL' | 'MENSAL_SEMANA' | 'UNICA' | 'DIA_UTIL';
 
 export interface ItemAgendaCalc {
   id: string;
@@ -119,6 +121,12 @@ export function ocorrenciasNoMes(item: ItemAgendaCalc, mes: number, ano: number)
     return data && valeDesde(data) ? [data] : [];
   }
 
+  if (item.frequencia === 'DIA_UTIL') {
+    if (!mesEstaNoCiclo(item, mes)) return [];
+    const data = enesimoDiaUtilSalario(ano, mes, item.diaMes ?? 5).pagar;
+    return valeDesde(data) ? [data] : [];
+  }
+
   if (item.diaMes == null || !mesEstaNoCiclo(item, mes)) return [];
   // Dia 31 num mês de 30 cai no dia 30.
   const data = ajustarParaDiaUtil(ano, mes, Math.min(item.diaMes, total));
@@ -195,6 +203,7 @@ export function rotuloFrequencia(item: ItemAgendaCalc): string {
   }
   if (item.frequencia === 'DIAS_UTEIS') return 'Todo dia útil';
   if (item.frequencia === 'SEMANAL') return item.diaSemana == null ? 'Semanal' : textoSemanal(item.diaSemana);
+  if (item.frequencia === 'DIA_UTIL') return `${item.diaMes ?? 5}º dia útil de todo mês`;
 
   const intervalo = Math.max(1, item.intervaloMeses || 1);
   if (item.frequencia === 'MENSAL_SEMANA') {

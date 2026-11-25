@@ -285,7 +285,7 @@ function Quadradinho({ cor }: { cor: string }) {
   return <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: 2, background: cor, marginRight: 5 }} />;
 }
 
-type Repeticao = 'UNICA' | 'DIAS_UTEIS' | 'SEMANAL' | 'MENSAL' | 'MENSAL_SEMANA_ORDEM' | 'MENSAL_SEMANA_ULTIMA' | 'ANUAL';
+type Repeticao = 'UNICA' | 'DIAS_UTEIS' | 'SEMANAL' | 'MENSAL' | 'MENSAL_SEMANA_ORDEM' | 'MENSAL_SEMANA_ULTIMA' | 'ANUAL' | 'QUINTO_DIA_UTIL';
 
 /**
  * Cadastro partindo de um dia, como no Google Agenda: as repetições já vêm
@@ -316,6 +316,7 @@ function FormNovo({ dataInicial, onPronto }: { dataInicial: string; onPronto: ()
     ...(pos.ordem <= 4 ? [{ valor: 'MENSAL_SEMANA_ORDEM' as Repeticao, texto: naSemana(pos.ordem) }] : []),
     ...(pos.ehUltima ? [{ valor: 'MENSAL_SEMANA_ULTIMA' as Repeticao, texto: naSemana(-1) }] : []),
     { valor: 'ANUAL', texto: `Anual em ${pos.dia} de ${NOMES_MES[pos.mes - 1].toLowerCase()}` },
+    { valor: 'QUINTO_DIA_UTIL', texto: 'Mensal no 5º dia útil (pagamento do salário)' },
   ] : [];
   const rep = opcoes.some((o) => o.valor === repeticao) ? repeticao : 'UNICA';
   const ehMensal = rep === 'MENSAL' || rep === 'MENSAL_SEMANA_ORDEM' || rep === 'MENSAL_SEMANA_ULTIMA';
@@ -329,6 +330,7 @@ function FormNovo({ dataInicial, onPronto }: { dataInicial: string; onPronto: ()
       rep === 'UNICA' ? { ...base, frequencia: 'UNICA', dataUnica: data }
       : rep === 'DIAS_UTEIS' ? { ...base, frequencia: 'DIAS_UTEIS' }
       : rep === 'SEMANAL' ? { ...base, frequencia: 'SEMANAL', diaSemana: pos.diaSemana }
+      : rep === 'QUINTO_DIA_UTIL' ? { ...base, frequencia: 'DIA_UTIL', diaMes: 5 }
       : rep === 'ANUAL' ? { ...base, frequencia: 'MENSAL', diaMes: pos.dia, intervaloMeses: 12, mesBase: pos.mes }
       : rep === 'MENSAL' ? { ...base, frequencia: 'MENSAL', diaMes: pos.dia, ...mensal }
       : { ...base, frequencia: 'MENSAL_SEMANA', diaSemana: pos.diaSemana, semanaDoMes: rep === 'MENSAL_SEMANA_ULTIMA' ? -1 : pos.ordem, ...mensal };
