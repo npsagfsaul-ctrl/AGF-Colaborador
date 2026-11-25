@@ -20,7 +20,8 @@ function iso(ano: number, mes: number, dia: number) {
 
 /** Volta até um dia de expediente (seg a sex, fora feriado). */
 function diaUtilAnterior(data: string): string {
-  let [a, m, d] = data.split('-').map(Number);
+  const [a, m, inicio] = data.split('-').map(Number);
+  let d = inicio;
   while (d > 1 && !ehDiaUtil(iso(a, m, d))) d--;
   return iso(a, m, d);
 }
