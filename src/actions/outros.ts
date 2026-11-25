@@ -48,19 +48,30 @@ export async function incluirNoPlano(fd: FormData): Promise<Resultado> {
     const nome = texto(fd, 'nome');
     if (!colaboradorId) throw new Error('Escolha o colaborador.');
     if (parentesco !== 'Titular' && !nome) throw new Error('Escreva o nome do dependente.');
-    await prisma.planoVida.create({
-      data: {
-        colaboradorId,
-        parentesco,
-        nome: parentesco === 'Titular' ? null : nome,
-        nascimento: data(fd, 'nascimento', 'Nascimento'),
-        plano: texto(fd, 'plano'),
-        carteirinha: texto(fd, 'carteirinha'),
-        valorCentavos: dinheiro(fd, 'valor', 'Mensalidade'),
-        inclusao: data(fd, 'inclusao', 'Inclusão') ?? hojeISO(),
-        observacao: texto(fd, 'observacao'),
-      },
-    });
+    const plano = texto(fd, 'plano');
+    const inclusao = data(fd, 'inclusao', 'Inclusão') ?? hojeISO();
+    // Dependente de quem ainda não está no plano: o formulário pede também a
+    // mensalidade do titular, e os dois entram juntos.
+    const comTitular = parentesco !== 'Titular' && fd.has('valorTitular');
+    const valorTitular = comTitular ? dinheiro(fd, 'valorTitular', 'Mensalidade do titular') : null;
+    await prisma.$transaction([
+      ...(comTitular
+        ? [prisma.planoVida.create({ data: { colaboradorId, parentesco: 'Titular', plano, valorCentavos: valorTitular, inclusao } })]
+        : []),
+      prisma.planoVida.create({
+        data: {
+          colaboradorId,
+          parentesco,
+          nome: parentesco === 'Titular' ? null : nome,
+          nascimento: data(fd, 'nascimento', 'Nascimento'),
+          plano,
+          carteirinha: texto(fd, 'carteirinha'),
+          valorCentavos: dinheiro(fd, 'valor', 'Mensalidade'),
+          inclusao,
+          observacao: texto(fd, 'observacao'),
+        },
+      }),
+    ]);
   });
 }
 

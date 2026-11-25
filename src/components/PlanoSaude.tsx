@@ -41,6 +41,7 @@ export default function PlanoSaude({
   const router = useRouter();
   const [novo, setNovo] = useState(false);
   const [parentesco, setParentesco] = useState('Titular');
+  const [quem, setQuem] = useState('');
   const [editando, setEditando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -48,6 +49,9 @@ export default function PlanoSaude({
   const ativas = vidas.filter((v) => !v.exclusao || v.exclusao > hoje);
   const saiu = vidas.filter((v) => v.exclusao && v.exclusao <= hoje);
   const custo = ativas.reduce((s, v) => s + (v.valorCentavos ?? 0), 0);
+  const temTitular = new Set(ativas.filter((v) => v.parentesco === 'Titular').map((v) => v.colaboradorId));
+  // Dependente de quem ainda não está no plano: pede as duas mensalidades.
+  const pedeTitular = parentesco !== 'Titular' && quem !== '' && !temTitular.has(quem);
 
   // Agrupa por colaborador: titular primeiro, dependentes embaixo.
   const familias = new Map<string, Vida[]>();
@@ -84,13 +88,13 @@ export default function PlanoSaude({
           onSubmit={(e) => {
             e.preventDefault();
             const form = e.currentTarget;
-            rodar(() => incluirNoPlano(new FormData(form)), () => { form.reset(); setParentesco('Titular'); setNovo(false); });
+            rodar(() => incluirNoPlano(new FormData(form)), () => { form.reset(); setParentesco('Titular'); setQuem(''); setNovo(false); });
           }}
         >
           <div className="grid grid-cols-3 gap-3">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Colaborador</label>
-              <select name="colaboradorId" className="form-select" required defaultValue="">
+              <select name="colaboradorId" className="form-select" required value={quem} onChange={(e) => setQuem(e.target.value)}>
                 <option value="" disabled>Escolha…</option>
                 {colaboradores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
@@ -109,7 +113,7 @@ export default function PlanoSaude({
             ) : <div />}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Plano</label>
-              <input name="plano" className="form-input" list="planos" placeholder="Unimed Enfermaria…" />
+              <input name="plano" className="form-input" list="planos" placeholder="Hospitalar" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Carteirinha</label>
@@ -120,9 +124,15 @@ export default function PlanoSaude({
               <input name="nascimento" type="date" className="form-input" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Mensalidade</label>
-              <input name="valor" className="form-input" placeholder="350,00" />
+              <label className="form-label">{parentesco === 'Titular' ? 'Mensalidade' : 'Mensalidade do dependente'}</label>
+              <input name="valor" className="form-input" placeholder="110,83" />
             </div>
+            {pedeTitular && (
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Mensalidade do titular</label>
+                <input name="valorTitular" className="form-input" placeholder="193,82" required />
+              </div>
+            )}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Inclusão</label>
               <input name="inclusao" type="date" className="form-input" defaultValue={hoje} />
@@ -149,6 +159,29 @@ export default function PlanoSaude({
               </div>
             </div>
             <ul className="dp-lista">
+              {!temTitular.has(g[0].colaboradorId) && (
+                <li style={{ flexWrap: 'wrap' }}>
+                  <form
+                    style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: '100%' }}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      fd.set('colaboradorId', g[0].colaboradorId);
+                      fd.set('parentesco', 'Titular');
+                      if (g[0].plano) fd.set('plano', g[0].plano);
+                      if (g[0].inclusao) fd.set('inclusao', g[0].inclusao);
+                      rodar(() => incluirNoPlano(fd));
+                    }}
+                  >
+                    <span style={{ flex: '1 1 240px' }}>
+                      <strong>{g[0].colaboradorNome}</strong> <span className="dp-etiqueta">Titular</span>
+                      <div className="text-muted" style={{ fontSize: '0.8125rem' }}>falta a mensalidade do titular</div>
+                    </span>
+                    <input name="valor" className="form-input" placeholder="Mensalidade" required style={{ width: 120 }} />
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={ocupado}>Incluir titular</button>
+                  </form>
+                </li>
+              )}
               {g.map((v) => (
                 <li key={v.id} style={{ flexWrap: 'wrap' }}>
                   {editando === v.id ? (
